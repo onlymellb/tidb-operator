@@ -174,12 +174,12 @@ def build(String name, String code, Map resources = e2ePodResources) {
 						chown -R 1000:1000 .
 						echo "info: print total size of artifacts"
 						du -sh .
+						echo "info: list all files"
+						find .
 						echo "info: moving all artifacts into a sub-directory"
 						shopt -s extglob
 						mkdir ${name}
 						mv !(${name}) ${name}/
-						echo "info: list all files"
-						find .
 						"""
 						archiveArtifacts artifacts: "${name}/**", allowEmptyArchive: true
 						junit testResults: "${name}/*.xml", allowEmptyResults: true
@@ -301,7 +301,7 @@ def call(BUILD_BRANCH, CREDENTIALS_ID, CODECOV_CREDENTIALS_ID) {
 		}
 		}
 
-		def GLOBALS = "SKIP_BUILD=y SKIP_IMAGE_BUILD=y DOCKER_REPO=hub.pingcap.net/tidb-operator-e2e IMAGE_TAG=${GITHASH}"
+		def GLOBALS = "SKIP_BUILD=y SKIP_IMAGE_BUILD=y DOCKER_REPO=hub.pingcap.net/tidb-operator-e2e IMAGE_TAG=${GITHASH} DELETE_NAMESPACE_ON_FAILURE=true GINKGO_NO_COLOR=y"
 		def builds = [:]
 		builds["E2E v1.12"] = {
 			build("v1.12", "${GLOBALS} GINKGO_NODES=6 KUBE_VERSION=v1.12 ./hack/e2e.sh -- --preload-images --operator-killer")
