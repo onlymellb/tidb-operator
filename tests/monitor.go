@@ -200,7 +200,6 @@ func checkPrometheusCommon(name, namespace string, fw portforward.PortForward) e
 			klog.Error(err.Error())
 			return false, nil
 		}
-		klog.Infof("monitor[%s/%s]'s prometheus targets error", namespace, name)
 		if data.Status != "success" || len(data.Data.ActiveTargets) < 1 {
 			klog.Errorf("monitor[%s/%s]'s prometheus targets error", namespace, name)
 			return false, nil
@@ -228,7 +227,15 @@ func checkGrafanaDataCommon(name, namespace string, grafanaClient *metrics.Clien
 		addr = fmt.Sprintf("%s.%s.svc.cluster.local:3000", svcName, namespace)
 	}
 
-	datasourceID, err := getDatasourceID(addr)
+	var datasourceID int
+	err := wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+		datasourceID, err = getDatasourceID(addr)
+		if err != nil {
+			klog.Error(err)
+			return false, nil
+		}
+		return true, nil
+	})
 	if err != nil {
 		return nil, err
 	}

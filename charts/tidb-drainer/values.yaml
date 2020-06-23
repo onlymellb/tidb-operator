@@ -12,10 +12,11 @@ timezone: UTC
 
 # clusterName is the TiDB cluster name that should backup from or restore to.
 clusterName: demo
-clusterVersion: v3.0.13
+clusterVersion: v4.0.0
 
 baseImage: pingcap/tidb-binlog
 imagePullPolicy: IfNotPresent
+# imagePullSecrets: []
 
 logLevel: info
 # storageClassName is a StorageClass provides a way for administrators to describe the "classes" of storage they offer.

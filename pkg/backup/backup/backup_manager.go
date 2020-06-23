@@ -220,7 +220,8 @@ func (bm *backupManager) makeExportJob(backup *v1alpha1.Backup) (*batchv1.Job, s
 					VolumeMounts: []corev1.VolumeMount{
 						{Name: label.BackupJobLabelVal, MountPath: constants.BackupRootPath},
 					},
-					Env: envVars,
+					Env:       envVars,
+					Resources: backup.Spec.ResourceRequirements,
 				},
 			},
 			RestartPolicy: corev1.RestartPolicyNever,
@@ -237,6 +238,10 @@ func (bm *backupManager) makeExportJob(backup *v1alpha1.Backup) (*batchv1.Job, s
 				},
 			},
 		},
+	}
+
+	if backup.Spec.ImagePullSecrets != nil {
+		podSpec.Spec.ImagePullSecrets = backup.Spec.ImagePullSecrets
 	}
 
 	job := &batchv1.Job{
@@ -355,6 +360,7 @@ func (bm *backupManager) makeBackupJob(backup *v1alpha1.Backup) (*batchv1.Job, s
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					VolumeMounts:    volumeMounts,
 					Env:             envVars,
+					Resources:       backup.Spec.ResourceRequirements,
 				},
 			},
 			RestartPolicy: corev1.RestartPolicyNever,
@@ -362,6 +368,10 @@ func (bm *backupManager) makeBackupJob(backup *v1alpha1.Backup) (*batchv1.Job, s
 			Tolerations:   backup.Spec.Tolerations,
 			Volumes:       volumes,
 		},
+	}
+
+	if backup.Spec.ImagePullSecrets != nil {
+		podSpec.Spec.ImagePullSecrets = backup.Spec.ImagePullSecrets
 	}
 
 	job := &batchv1.Job{

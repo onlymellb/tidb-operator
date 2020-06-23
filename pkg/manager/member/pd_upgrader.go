@@ -16,7 +16,7 @@ package member
 import (
 	"fmt"
 
-	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1/helper"
+	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	"github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1"
 	"github.com/pingcap/tidb-operator/pkg/controller"
 	"github.com/pingcap/tidb-operator/pkg/pdapi"
@@ -52,6 +52,16 @@ func (pu *pdUpgrader) gracefulUpgrade(tc *v1alpha1.TidbCluster, oldSet *apps.Sta
 	if !tc.Status.PD.Synced {
 		return fmt.Errorf("tidbcluster: [%s/%s]'s pd status sync failed,can not to be upgraded", ns, tcName)
 	}
+	if tc.PDScaling() {
+		klog.Infof("TidbCluster: [%s/%s]'s pd is scaling, can not upgrade pd",
+			ns, tcName)
+		_, podSpec, err := GetLastAppliedConfig(oldSet)
+		if err != nil {
+			return err
+		}
+		newSet.Spec.Template.Spec = *podSpec
+		return nil
+	}
 
 	tc.Status.PD.Phase = v1alpha1.UpgradePhase
 	if !templateEqual(newSet, oldSet) {
@@ -69,11 +79,6 @@ func (pu *pdUpgrader) gracefulUpgrade(tc *v1alpha1.TidbCluster, oldSet *apps.Sta
 		// Therefore, in the production environment, we should try to avoid modifying the pd statefulset update strategy directly.
 		newSet.Spec.UpdateStrategy = oldSet.Spec.UpdateStrategy
 		klog.Warningf("tidbcluster: [%s/%s] pd statefulset %s UpdateStrategy has been modified manually", ns, tcName, oldSet.GetName())
-		return nil
-	}
-
-	if controller.PodWebhookEnabled {
-		setUpgradePartition(newSet, 0)
 		return nil
 	}
 
@@ -97,6 +102,11 @@ func (pu *pdUpgrader) gracefulUpgrade(tc *v1alpha1.TidbCluster, oldSet *apps.Sta
 				return controller.RequeueErrorf("tidbcluster: [%s/%s]'s pd upgraded pod: [%s] is not ready", ns, tcName, podName)
 			}
 			continue
+		}
+
+		if controller.PodWebhookEnabled {
+			setUpgradePartition(newSet, i)
+			return nil
 		}
 
 		return pu.upgradePDPod(tc, i, newSet)

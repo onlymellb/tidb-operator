@@ -36,8 +36,14 @@ import (
 )
 
 const (
-	DefaultTimeout = 5 * time.Second
+	DefaultTimeout       = 5 * time.Second
+	evictSchedulerLeader = "evict-leader-scheduler"
 )
+
+// Payload only used to unmarshal the data from pdapi
+type Payload struct {
+	StoreIdRanges map[string]interface{} `json:"store-id-ranges"`
+}
 
 // Namespace is a newtype of a string
 type Namespace string
@@ -46,18 +52,22 @@ type Namespace string
 type PDControlInterface interface {
 	// GetPDClient provides PDClient of the tidb cluster.
 	GetPDClient(Namespace, string, bool) PDClient
+	// GetPDEtcdClient provides PD etcd Client of the tidb cluster.
+	GetPDEtcdClient(namespace Namespace, tcName string, tlsEnabled bool) (PDEtcdClient, error)
 }
 
 // defaultPDControl is the default implementation of PDControlInterface.
 type defaultPDControl struct {
-	mutex     sync.Mutex
-	kubeCli   kubernetes.Interface
-	pdClients map[string]PDClient
+	mutex         sync.Mutex
+	etcdmutex     sync.Mutex
+	kubeCli       kubernetes.Interface
+	pdClients     map[string]PDClient
+	pdEtcdClients map[string]PDEtcdClient
 }
 
 // NewDefaultPDControl returns a defaultPDControl instance
 func NewDefaultPDControl(kubeCli kubernetes.Interface) PDControlInterface {
-	return &defaultPDControl{kubeCli: kubeCli, pdClients: map[string]PDClient{}}
+	return &defaultPDControl{kubeCli: kubeCli, pdClients: map[string]PDClient{}, pdEtcdClients: map[string]PDEtcdClient{}}
 }
 
 // GetTLSConfig returns *tls.Config for given TiDB cluster.
@@ -70,6 +80,32 @@ func GetTLSConfig(kubeCli kubernetes.Interface, namespace Namespace, tcName stri
 	}
 
 	return crypto.LoadTlsConfigFromSecret(secret, caCert)
+}
+
+func (pdc *defaultPDControl) GetPDEtcdClient(namespace Namespace, tcName string, tlsEnabled bool) (PDEtcdClient, error) {
+	pdc.etcdmutex.Lock()
+	defer pdc.etcdmutex.Unlock()
+
+	var tlsConfig *tls.Config
+	var err error
+
+	if tlsEnabled {
+		tlsConfig, err = GetTLSConfig(pdc.kubeCli, namespace, tcName, nil)
+		if err != nil {
+			klog.Errorf("Unable to get tls config for tidb cluster %q, pd etcd client may not work: %v", tcName, err)
+			return nil, err
+		}
+		return NewPdEtcdClient(PDEtcdClientURL(namespace, tcName), DefaultTimeout, tlsConfig)
+	}
+	key := pdEtcdClientKey(namespace, tcName)
+	if _, ok := pdc.pdEtcdClients[key]; !ok {
+		pdetcdClient, err := NewPdEtcdClient(PDEtcdClientURL(namespace, tcName), DefaultTimeout, nil)
+		if err != nil {
+			return nil, err
+		}
+		pdc.pdEtcdClients[key] = pdetcdClient
+	}
+	return pdc.pdEtcdClients[key], nil
 }
 
 // GetPDClient provides a PDClient of real pd cluster,if the PDClient not existing, it will create new one.
@@ -104,9 +140,17 @@ func pdClientKey(scheme string, namespace Namespace, clusterName string) string 
 	return fmt.Sprintf("%s.%s.%s", scheme, clusterName, string(namespace))
 }
 
+func pdEtcdClientKey(namespace Namespace, clusterName string) string {
+	return fmt.Sprintf("%s.%s", clusterName, string(namespace))
+}
+
 // pdClientUrl builds the url of pd client
 func PdClientURL(namespace Namespace, clusterName string, scheme string) string {
 	return fmt.Sprintf("%s://%s-pd.%s:2379", scheme, clusterName, string(namespace))
+}
+
+func PDEtcdClientURL(namespace Namespace, clusterName string) string {
+	return fmt.Sprintf("%s-pd.%s:2379", clusterName, string(namespace))
 }
 
 // PDClient provides pd server's api
@@ -592,18 +636,52 @@ func (pc *pdClient) GetEvictLeaderSchedulers() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	schedulers := []string{}
+	var schedulers []string
 	err = json.Unmarshal(body, &schedulers)
 	if err != nil {
 		return nil, err
 	}
-	evicts := []string{}
+	var evicts []string
 	for _, scheduler := range schedulers {
 		if strings.HasPrefix(scheduler, "evict-leader-scheduler") {
 			evicts = append(evicts, scheduler)
 		}
 	}
-	return evicts, nil
+	evictSchedulers, err := pc.filterLeaderEvictScheduler(evicts)
+	if err != nil {
+		return nil, err
+	}
+	return evictSchedulers, nil
+}
+
+// This method is to make compatible between old pdapi version and 4.0 pdapi version.
+// To get more detail, see: https://github.com/pingcap/tidb-operator/pull/1831
+func (pc *pdClient) filterLeaderEvictScheduler(evictLeaderSchedulers []string) ([]string, error) {
+	var schedulerIds []string
+	if len(evictLeaderSchedulers) == 1 && evictLeaderSchedulers[0] == evictSchedulerLeader {
+		c, err := pc.GetConfig()
+		if err != nil {
+			return nil, err
+		}
+		if c.Schedule != nil && c.Schedule.SchedulersPayload != nil {
+			v, ok := c.Schedule.SchedulersPayload[evictSchedulerLeader]
+			if ok {
+				payload := &Payload{}
+				err := json.Unmarshal([]byte(v), payload)
+				if err != nil {
+					return nil, err
+				}
+				for k := range payload.StoreIdRanges {
+					schedulerIds = append(schedulerIds, fmt.Sprintf("%s-%v", evictSchedulerLeader, k))
+				}
+			}
+		}
+	} else {
+		for _, s := range evictLeaderSchedulers {
+			schedulerIds = append(schedulerIds, s)
+		}
+	}
+	return schedulerIds, nil
 }
 
 func (pc *pdClient) GetPDLeader() (*pdpb.Member, error) {

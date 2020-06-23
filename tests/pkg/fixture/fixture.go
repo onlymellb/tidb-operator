@@ -16,9 +16,11 @@ package fixture
 import (
 	"fmt"
 
+	"github.com/Masterminds/semver"
 	"github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1"
 	"github.com/pingcap/tidb-operator/pkg/label"
 	"github.com/pingcap/tidb-operator/pkg/tkctl/util"
+	tcconfig "github.com/pingcap/tidb-operator/pkg/util/config"
 	utilimage "github.com/pingcap/tidb-operator/tests/e2e/util/image"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1beta1 "k8s.io/api/rbac/v1beta1"
@@ -61,12 +63,28 @@ func WithStorage(r corev1.ResourceRequirements, size string) corev1.ResourceRequ
 		r.Requests = corev1.ResourceList{}
 	}
 	r.Requests[corev1.ResourceStorage] = resource.MustParse(size)
-
 	return r
 }
 
+var (
+	// the first version which introduces storage.reserve-space config
+	// https://github.com/tikv/tikv/pull/6321
+	tikvV4Beta = semver.MustParse("v4.0.0-beta")
+)
+
 // GetTidbCluster returns a TidbCluster resource configured for testing
 func GetTidbCluster(ns, name, version string) *v1alpha1.TidbCluster {
+	tikvStorageConfig := &v1alpha1.TiKVStorageConfig{
+		// Don't reserve space in e2e tests, see
+		// https://github.com/pingcap/tidb-operator/issues/2509.
+		ReserveSpace: pointer.StringPtr("0MB"),
+	}
+	// We assume all unparsable versions are greater or equal to v4.0.0-beta,
+	// e.g. nightly.
+	if v, err := semver.NewVersion(version); err == nil && v.LessThan(tikvV4Beta) {
+		tikvStorageConfig = nil
+	}
+	deletePVP := corev1.PersistentVolumeReclaimDelete
 	return &v1alpha1.TidbCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -75,7 +93,7 @@ func GetTidbCluster(ns, name, version string) *v1alpha1.TidbCluster {
 		Spec: v1alpha1.TidbClusterSpec{
 			Version:         version,
 			ImagePullPolicy: corev1.PullIfNotPresent,
-			PVReclaimPolicy: corev1.PersistentVolumeReclaimDelete,
+			PVReclaimPolicy: &deletePVP,
 			SchedulerName:   "tidb-scheduler",
 			Timezone:        "Asia/Shanghai",
 
@@ -85,12 +103,15 @@ func GetTidbCluster(ns, name, version string) *v1alpha1.TidbCluster {
 				ResourceRequirements: WithStorage(BurstbleSmall, "1Gi"),
 				Config: &v1alpha1.PDConfig{
 					Log: &v1alpha1.PDLogConfig{
-						Level: "info",
+						Level: pointer.StringPtr("info"),
 					},
 					// accelerate failover
 					Schedule: &v1alpha1.PDScheduleConfig{
-						MaxStoreDownTime: "5m",
+						MaxStoreDownTime: pointer.StringPtr("5m"),
 					},
+				},
+				ComponentSpec: v1alpha1.ComponentSpec{
+					Affinity: buildAffinity(name, ns, v1alpha1.PDMemberType),
 				},
 			},
 
@@ -100,8 +121,12 @@ func GetTidbCluster(ns, name, version string) *v1alpha1.TidbCluster {
 				ResourceRequirements: WithStorage(BurstbleMedium, "10Gi"),
 				MaxFailoverCount:     pointer.Int32Ptr(3),
 				Config: &v1alpha1.TiKVConfig{
-					LogLevel: "info",
+					LogLevel: pointer.StringPtr("info"),
 					Server:   &v1alpha1.TiKVServerConfig{},
+					Storage:  tikvStorageConfig,
+				},
+				ComponentSpec: v1alpha1.ComponentSpec{
+					Affinity: buildAffinity(name, ns, v1alpha1.TiKVMemberType),
 				},
 			},
 
@@ -122,9 +147,51 @@ func GetTidbCluster(ns, name, version string) *v1alpha1.TidbCluster {
 						Level: pointer.StringPtr("info"),
 					},
 				},
+				ComponentSpec: v1alpha1.ComponentSpec{
+					Affinity: buildAffinity(name, ns, v1alpha1.TiDBMemberType),
+				},
 			},
 		},
 	}
+}
+
+func buildAffinity(name, namespace string, memberType v1alpha1.MemberType) *corev1.Affinity {
+	return &corev1.Affinity{
+		PodAntiAffinity: &corev1.PodAntiAffinity{
+			PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+				{
+					Weight: int32(50),
+					PodAffinityTerm: corev1.PodAffinityTerm{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"app.kubernetes.io/component": memberType.String(),
+								"app.kubernetes.io/instance":  name,
+							},
+						},
+						Namespaces: []string{
+							namespace,
+						},
+						TopologyKey: "rack",
+					},
+				},
+			},
+		},
+	}
+}
+
+func GetTidbClusterWithTiFlash(ns, name, version string) *v1alpha1.TidbCluster {
+	tc := GetTidbCluster(ns, name, version)
+	tc.Spec.TiFlash = &v1alpha1.TiFlashSpec{
+		Replicas:         1,
+		BaseImage:        "pingcap/tiflash",
+		MaxFailoverCount: pointer.Int32Ptr(3),
+		StorageClaims: []v1alpha1.StorageClaim{
+			{
+				Resources: WithStorage(BurstbleMedium, "10Gi"),
+			},
+		},
+	}
+	return tc
 }
 
 func GetTidbInitializer(ns, tcName, initName, initPassWDName, initTLSName string) *v1alpha1.TidbInitializer {
@@ -339,9 +406,17 @@ func GetTidbClusterAutoScaler(name, ns string, tc *v1alpha1.TidbCluster, tm *v1a
 	}
 }
 
-func GetBackupCRDForBRWithS3(tc *v1alpha1.TidbCluster, fromSecretName string, s3config *v1alpha1.S3StorageProvider) *v1alpha1.Backup {
+const (
+	BRType     = "br"
+	DumperType = "dumper"
+)
+
+func GetBackupCRDWithS3(tc *v1alpha1.TidbCluster, fromSecretName, brType string, s3config *v1alpha1.S3StorageProvider) *v1alpha1.Backup {
+	if brType != BRType && brType != DumperType {
+		return nil
+	}
 	sendCredToTikv := true
-	return &v1alpha1.Backup{
+	br := &v1alpha1.Backup{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-backup", tc.Name),
 			Namespace: tc.Namespace,
@@ -364,11 +439,21 @@ func GetBackupCRDForBRWithS3(tc *v1alpha1.TidbCluster, fromSecretName string, s3
 			},
 		},
 	}
+	if brType == DumperType {
+		storage := "local-storage"
+		br.Spec.BR = nil
+		br.Spec.StorageClassName = &storage
+		br.Spec.StorageSize = "1Gi"
+	}
+	return br
 }
 
-func GetRestoreCRDForBRWithS3(tc *v1alpha1.TidbCluster, toSecretName string, s3config *v1alpha1.S3StorageProvider) *v1alpha1.Restore {
+func GetRestoreCRDWithS3(tc *v1alpha1.TidbCluster, toSecretName, restoreType string, s3config *v1alpha1.S3StorageProvider) *v1alpha1.Restore {
+	if restoreType != BRType && restoreType != DumperType {
+		return nil
+	}
 	sendCredToTikv := true
-	return &v1alpha1.Restore{
+	restore := &v1alpha1.Restore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-restore", tc.GetName()),
 			Namespace: tc.GetNamespace(),
@@ -391,4 +476,63 @@ func GetRestoreCRDForBRWithS3(tc *v1alpha1.TidbCluster, toSecretName string, s3c
 			},
 		},
 	}
+	if restoreType == DumperType {
+		storage := "local-storage"
+		restore.Spec.BR = nil
+		restore.Spec.StorageClassName = &storage
+		restore.Spec.StorageSize = "1Gi"
+		restore.Spec.S3.Path = fmt.Sprintf("s3://%s/%s", s3config.Bucket, s3config.Path)
+	}
+	return restore
+}
+
+func AddPumpForTidbCluster(tc *v1alpha1.TidbCluster) *v1alpha1.TidbCluster {
+	if tc.Spec.Pump != nil {
+		return tc
+	}
+	policy := corev1.PullIfNotPresent
+	tc.Spec.Pump = &v1alpha1.PumpSpec{
+		BaseImage: "pingcap/tidb-binlog",
+		ComponentSpec: v1alpha1.ComponentSpec{
+			Version:         &tc.Spec.Version,
+			ImagePullPolicy: &policy,
+			Affinity: &corev1.Affinity{
+				PodAntiAffinity: &corev1.PodAntiAffinity{
+					PreferredDuringSchedulingIgnoredDuringExecution: []corev1.WeightedPodAffinityTerm{
+						{
+							PodAffinityTerm: corev1.PodAffinityTerm{
+								Namespaces:  []string{tc.Namespace},
+								TopologyKey: "rack",
+							},
+							Weight: 50,
+						},
+					},
+				},
+			},
+			Tolerations: []corev1.Toleration{
+				{
+					Effect:   corev1.TaintEffectNoSchedule,
+					Key:      "node-role",
+					Operator: corev1.TolerationOpEqual,
+					Value:    "tidb",
+				},
+			},
+			SchedulerName:        pointer.StringPtr("default-scheduler"),
+			ConfigUpdateStrategy: &tc.Spec.ConfigUpdateStrategy,
+		},
+		Replicas:         1,
+		StorageClassName: pointer.StringPtr("local-storage"),
+		ResourceRequirements: corev1.ResourceRequirements{
+			Requests: corev1.ResourceList{
+				corev1.ResourceStorage: resource.MustParse("10Gi"),
+			},
+		},
+		GenericConfig: tcconfig.New(map[string]interface{}{
+			"addr":               "0.0.0.0:8250",
+			"gc":                 7,
+			"data-dir":           "/data",
+			"heartbeat-interval": 2,
+		}),
+	}
+	return tc
 }

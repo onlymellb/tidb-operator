@@ -18,7 +18,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1/helper"
+	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	"github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1"
 	"github.com/pingcap/tidb-operator/pkg/controller"
 	"github.com/pingcap/tidb-operator/pkg/pdapi"
@@ -55,7 +55,10 @@ func NewTiKVUpgrader(pdControl pdapi.PDControlInterface,
 func (tku *tikvUpgrader) Upgrade(tc *v1alpha1.TidbCluster, oldSet *apps.StatefulSet, newSet *apps.StatefulSet) error {
 	ns := tc.GetNamespace()
 	tcName := tc.GetName()
-	if tc.Status.PD.Phase == v1alpha1.UpgradePhase {
+
+	if tc.Status.PD.Phase == v1alpha1.UpgradePhase || tc.TiKVScaling() {
+		klog.Infof("TidbCluster: [%s/%s]'s pd status is %v, tikv status is %v, can not upgrade tikv",
+			ns, tcName, tc.Status.PD.Phase, tc.Status.TiKV.Phase)
 		_, podSpec, err := GetLastAppliedConfig(oldSet)
 		if err != nil {
 			return err
@@ -87,11 +90,6 @@ func (tku *tikvUpgrader) Upgrade(tc *v1alpha1.TidbCluster, oldSet *apps.Stateful
 		return nil
 	}
 
-	if controller.PodWebhookEnabled {
-		setUpgradePartition(newSet, 0)
-		return nil
-	}
-
 	setUpgradePartition(newSet, *oldSet.Spec.UpdateStrategy.RollingUpdate.Partition)
 	podOrdinals := helper.GetPodOrdinals(*oldSet.Spec.Replicas, oldSet).List()
 	for _i := len(podOrdinals) - 1; _i >= 0; _i-- {
@@ -120,6 +118,11 @@ func (tku *tikvUpgrader) Upgrade(tc *v1alpha1.TidbCluster, oldSet *apps.Stateful
 			}
 
 			continue
+		}
+
+		if controller.PodWebhookEnabled {
+			setUpgradePartition(newSet, i)
+			return nil
 		}
 
 		return tku.upgradeTiKVPod(tc, i, newSet)

@@ -577,6 +577,7 @@ func TestTiDBMemberManagerSyncTidbService(t *testing.T) {
 			test.expectFn(g, syncErr, svc)
 		}
 	}
+	policyLocal := corev1.ServiceExternalTrafficPolicyTypeLocal
 	tests := []*testcase{
 		{
 			name: "Create service",
@@ -742,6 +743,33 @@ func TestTiDBMemberManagerSyncTidbService(t *testing.T) {
 				g.Expect(svc.Spec.Ports[0].Name).To(Equal("mysql-tidb"))
 			},
 		},
+		{
+			name: "Update service should remain healthcheck node port",
+			prepare: func(tc *v1alpha1.TidbCluster, indexers *fakeIndexers) {
+				tc.Spec.TiDB.Service = &v1alpha1.TiDBServiceSpec{
+					ServiceSpec: v1alpha1.ServiceSpec{
+						Type: corev1.ServiceTypeLoadBalancer,
+					},
+					ExternalTrafficPolicy: &policyLocal,
+				}
+				_ = indexers.svc.Add(&corev1.Service{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{controller.GetOwnerRef(tc)},
+						Name:            controller.TiDBMemberName(tc.Name),
+						Namespace:       corev1.NamespaceDefault,
+					},
+					Spec: corev1.ServiceSpec{
+						Type:                  corev1.ServiceTypeLoadBalancer,
+						ExternalTrafficPolicy: policyLocal,
+						HealthCheckNodePort:   8888,
+					},
+				})
+			},
+			expectFn: func(g *GomegaWithT, err error, svc *corev1.Service) {
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(svc.Spec.HealthCheckNodePort).To(Equal(int32(8888)))
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -853,6 +881,7 @@ func TestGetNewTiDBHeadlessServiceForTidbCluster(t *testing.T) {
 						"app.kubernetes.io/managed-by": "tidb-operator",
 						"app.kubernetes.io/instance":   "foo",
 						"app.kubernetes.io/component":  "tidb",
+						"app.kubernetes.io/used-by":    "peer",
 					},
 					OwnerReferences: []metav1.OwnerReference{
 						{
@@ -1041,6 +1070,40 @@ func TestGetNewTiDBSetForTidbCluster(t *testing.T) {
 					},
 				}))
 			},
+		},
+		{
+			name: "TiDB additional containers",
+			tc: v1alpha1.TidbCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "tc",
+					Namespace: "ns",
+				},
+				Spec: v1alpha1.TidbClusterSpec{
+					TiDB: v1alpha1.TiDBSpec{
+						ComponentSpec: v1alpha1.ComponentSpec{
+							AdditionalContainers: []corev1.Container{customSideCarContainers[0]},
+						},
+					},
+				},
+			},
+			testSts: testAdditionalContainers(t, []corev1.Container{customSideCarContainers[0]}),
+		},
+		{
+			name: "TiDB additional volumes",
+			tc: v1alpha1.TidbCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "tc",
+					Namespace: "ns",
+				},
+				Spec: v1alpha1.TidbClusterSpec{
+					TiDB: v1alpha1.TiDBSpec{
+						ComponentSpec: v1alpha1.ComponentSpec{
+							AdditionalVolumes: []corev1.Volume{{Name: "test", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}},
+						},
+					},
+				},
+			},
+			testSts: testAdditionalVolumes(t, []corev1.Volume{{Name: "test", VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}}}),
 		},
 		// TODO add more tests
 	}
@@ -1319,6 +1382,10 @@ func TestTiDBInitContainers(t *testing.T) {
 func TestGetNewTiDBService(t *testing.T) {
 	g := NewGomegaWithT(t)
 	trafficPolicy := corev1.ServiceExternalTrafficPolicyTypeLocal
+	loadBalancerSourceRanges := []string{
+		"10.0.0.0/8",
+		"130.211.204.1/32",
+	}
 	testCases := []struct {
 		name     string
 		tc       v1alpha1.TidbCluster
@@ -1358,6 +1425,7 @@ func TestGetNewTiDBService(t *testing.T) {
 						"app.kubernetes.io/managed-by": "tidb-operator",
 						"app.kubernetes.io/instance":   "foo",
 						"app.kubernetes.io/component":  "tidb",
+						"app.kubernetes.io/used-by":    "end-user",
 					},
 					OwnerReferences: []metav1.OwnerReference{
 						{
@@ -1416,6 +1484,7 @@ func TestGetNewTiDBService(t *testing.T) {
 						"app.kubernetes.io/managed-by": "tidb-operator",
 						"app.kubernetes.io/instance":   "foo",
 						"app.kubernetes.io/component":  "tidb",
+						"app.kubernetes.io/used-by":    "end-user",
 					},
 					OwnerReferences: []metav1.OwnerReference{
 						{
@@ -1471,6 +1540,7 @@ func TestGetNewTiDBService(t *testing.T) {
 								Annotations: map[string]string{
 									"lb-type": "testlb",
 								},
+								LoadBalancerSourceRanges: loadBalancerSourceRanges,
 							},
 							ExternalTrafficPolicy: &trafficPolicy,
 							ExposeStatus:          pointer.BoolPtr(true),
@@ -1487,6 +1557,7 @@ func TestGetNewTiDBService(t *testing.T) {
 						"app.kubernetes.io/managed-by": "tidb-operator",
 						"app.kubernetes.io/instance":   "foo",
 						"app.kubernetes.io/component":  "tidb",
+						"app.kubernetes.io/used-by":    "end-user",
 					},
 					Annotations: map[string]string{
 						"lb-type": "testlb",
@@ -1509,6 +1580,10 @@ func TestGetNewTiDBService(t *testing.T) {
 				Spec: corev1.ServiceSpec{
 					Type:                  corev1.ServiceTypeLoadBalancer,
 					ExternalTrafficPolicy: corev1.ServiceExternalTrafficPolicyTypeLocal,
+					LoadBalancerSourceRanges: []string{
+						"10.0.0.0/8",
+						"130.211.204.1/32",
+					},
 					Ports: []corev1.ServicePort{
 						{
 							Name:       "mysql-client",

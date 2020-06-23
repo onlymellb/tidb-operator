@@ -21,8 +21,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/pingcap/advanced-statefulset/pkg/apis/apps/v1/helper"
-	asclientset "github.com/pingcap/advanced-statefulset/pkg/client/clientset/versioned"
+	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
+	asclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	"github.com/pingcap/tidb-operator/pkg/client/clientset/versioned"
 	informers "github.com/pingcap/tidb-operator/pkg/client/informers/externalversions"
 	"github.com/pingcap/tidb-operator/pkg/controller"
@@ -32,8 +32,10 @@ import (
 	"github.com/pingcap/tidb-operator/pkg/controller/periodicity"
 	"github.com/pingcap/tidb-operator/pkg/controller/restore"
 	"github.com/pingcap/tidb-operator/pkg/controller/tidbcluster"
+	"github.com/pingcap/tidb-operator/pkg/controller/tidbgroup"
 	"github.com/pingcap/tidb-operator/pkg/controller/tidbinitializer"
 	"github.com/pingcap/tidb-operator/pkg/controller/tidbmonitor"
+	"github.com/pingcap/tidb-operator/pkg/controller/tikvgroup"
 	"github.com/pingcap/tidb-operator/pkg/features"
 	"github.com/pingcap/tidb-operator/pkg/scheme"
 	"github.com/pingcap/tidb-operator/pkg/upgrader"
@@ -187,6 +189,8 @@ func main() {
 		bsController := backupschedule.NewController(kubeCli, cli, informerFactory, kubeInformerFactory)
 		tidbInitController := tidbinitializer.NewController(kubeCli, cli, genericCli, informerFactory, kubeInformerFactory)
 		tidbMonitorController := tidbmonitor.NewController(kubeCli, genericCli, cli, informerFactory, kubeInformerFactory)
+		tidbGroupController := tidbgroup.NewController(kubeCli, cli, informerFactory, kubeInformerFactory)
+		tikvGroupController := tikvgroup.NewController(kubeCli, cli, informerFactory, kubeInformerFactory)
 
 		var periodicityController *periodicity.Controller
 		if controller.PodWebhookEnabled {
@@ -219,6 +223,9 @@ func main() {
 		go wait.Forever(func() { bsController.Run(workers, ctx.Done()) }, waitDuration)
 		go wait.Forever(func() { tidbInitController.Run(workers, ctx.Done()) }, waitDuration)
 		go wait.Forever(func() { tidbMonitorController.Run(workers, ctx.Done()) }, waitDuration)
+		go wait.Forever(func() { tidbGroupController.Run(workers, ctx.Done()) }, waitDuration)
+		go wait.Forever(func() { tikvGroupController.Run(workers, ctx.Done()) }, waitDuration)
+
 		if controller.PodWebhookEnabled {
 			go wait.Forever(func() { periodicityController.Run(ctx.Done()) }, waitDuration)
 		}

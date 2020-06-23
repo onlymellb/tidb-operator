@@ -39,6 +39,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.0.1-0.20190118093823-f849b5445de4 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.13.0 // indirect
 	github.com/imdario/mergo v0.3.7 // indirect
+	github.com/jonboulle/clockwork v0.1.0
 	github.com/juju/errors v0.0.0-20180806074554-22422dad46e1
 	github.com/juju/loggo v0.0.0-20180524022052-584905176618 // indirect
 	github.com/juju/testing v0.0.0-20180920084828-472a3e8b2073 // indirect
@@ -51,7 +52,7 @@ require (
 	github.com/openshift/generic-admission-server v1.14.0
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pierrec/lz4 v2.0.5+incompatible // indirect
-	github.com/pingcap/advanced-statefulset v0.3.2
+	github.com/pingcap/advanced-statefulset/client v1.16.0
 	github.com/pingcap/check v0.0.0-20190102082844-67f458068fc8 // indirect
 	github.com/pingcap/errors v0.11.0
 	github.com/pingcap/kvproto v0.0.0-20191217072959-393e6c0fd4b7

@@ -46,7 +46,7 @@ spec:
     #  requests:
     #    cpu: 50m
     #    memory: 64Mi
-    version: v3.0.13
+    version: v4.0.0
   kubePrometheusURL: ""
   nodeSelector: {}
   persistent: true
@@ -65,7 +65,7 @@ spec:
     service:
       portName: http-prometheus
       type: NodePort
-    version: v2.11.1
+    version: v2.18.1
   reloader:
     baseImage: pingcap/tidb-monitor-reloader
     imagePullPolicy: IfNotPresent

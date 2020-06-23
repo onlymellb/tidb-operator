@@ -16,6 +16,10 @@ Resource Types:
 </li><li>
 <a href="#restore">Restore</a>
 </li><li>
+<a href="#tidbgroup">TiDBGroup</a>
+</li><li>
+<a href="#tikvgroup">TiKVGroup</a>
+</li><li>
 <a href="#tidbcluster">TidbCluster</a>
 </li><li>
 <a href="#tidbclusterautoscaler">TidbClusterAutoScaler</a>
@@ -80,6 +84,18 @@ BackupSpec
 <br/>
 <br/>
 <table>
+<tr>
+<td>
+<code>resources</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
 <tr>
 <td>
 <code>from</code></br>
@@ -197,6 +213,20 @@ MydumperConfig
 <td>
 <em>(Optional)</em>
 <p>Base tolerations of backup Pods, components may add more tolerations upon this respectively</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
 </td>
 </tr>
 <tr>
@@ -390,6 +420,20 @@ string
 <p>StorageSize is the request storage size for backup job</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -463,6 +507,18 @@ RestoreSpec
 <br/>
 <br/>
 <table>
+<tr>
+<td>
+<code>resources</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
 <tr>
 <td>
 <code>to</code></br>
@@ -605,6 +661,20 @@ string
 <p>Specify service account of restore</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -618,6 +688,208 @@ RestoreStatus
 </em>
 </td>
 <td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tidbgroup">TiDBGroup</h3>
+<p>
+<p>TiDBGroup encode the spec and status of a Group of TiDB Instances</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>apiVersion</code></br>
+string</td>
+<td>
+<code>
+pingcap.com/v1alpha1
+</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code></br>
+string
+</td>
+<td><code>TiDBGroup</code></td>
+</tr>
+<tr>
+<td>
+<code>metadata</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code></br>
+<em>
+<a href="#tidbgroupspec">
+TiDBGroupSpec
+</a>
+</em>
+</td>
+<td>
+<p>Spec defines the desired state of TiDBGroup</p>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>TiDBSpec</code></br>
+<em>
+<a href="#tidbspec">
+TiDBSpec
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>TiDBSpec</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>clusterName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ClusterName describe the target TidbCluster in the same namespace</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code></br>
+<em>
+<a href="#tidbgroupstatus">
+TiDBGroupStatus
+</a>
+</em>
+</td>
+<td>
+<p>Most recently observed status of the TiDBGroup</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tikvgroup">TiKVGroup</h3>
+<p>
+<p>TiKVGroup encode the spec and status of a Group of TiKV Instances</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>apiVersion</code></br>
+string</td>
+<td>
+<code>
+pingcap.com/v1alpha1
+</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code></br>
+string
+</td>
+<td><code>TiKVGroup</code></td>
+</tr>
+<tr>
+<td>
+<code>metadata</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code></br>
+<em>
+<a href="#tikvgroupspec">
+TiKVGroupSpec
+</a>
+</em>
+</td>
+<td>
+<p>Spec defines the desired state of TiKVGroup</p>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>TiKVSpec</code></br>
+<em>
+<a href="#tikvspec">
+TiKVSpec
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>TiKVSpec</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>clusterName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ClusterName describe the target TidbCluster in the same namespace</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code></br>
+<em>
+<a href="#tikvgroupstatus">
+TiKVGroupStatus
+</a>
+</em>
+</td>
+<td>
+<p>Most recently observed status of the TiKVGroup</p>
 </td>
 </tr>
 </tbody>
@@ -679,6 +951,19 @@ TidbClusterSpec
 <br/>
 <br/>
 <table>
+<tr>
+<td>
+<code>discovery</code></br>
+<em>
+<a href="#discoveryspec">
+DiscoverySpec
+</a>
+</em>
+</td>
+<td>
+<p>Discovery spec</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>pd</code></br>
@@ -839,6 +1124,20 @@ Kubernetes core/v1.PullPolicy
 </tr>
 <tr>
 <td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>configUpdateStrategy</code></br>
 <em>
 <a href="#configupdatestrategy">
@@ -985,6 +1284,18 @@ Optional: Defaults to UTC</p>
 <td>
 <p>Services list non-headless services type used in TidbCluster
 Deprecated</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>enableDynamicConfiguration</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>EnableDynamicConfiguration indicates whether DynamicConfiguration is enabled for the tidbcluster</p>
 </td>
 </tr>
 </table>
@@ -1243,6 +1554,20 @@ Kubernetes core/v1.PullPolicy
 </tr>
 <tr>
 <td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>permitHost</code></br>
 <em>
 string
@@ -1489,6 +1814,20 @@ Kubernetes core/v1.PullPolicy
 </tr>
 <tr>
 <td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>persistent</code></br>
 <em>
 bool
@@ -1581,6 +1920,19 @@ string
 Ref: <a href="https://prometheus.io/docs/alerting/alertmanager/">https://prometheus.io/docs/alerting/alertmanager/</a></p>
 </td>
 </tr>
+<tr>
+<td>
+<code>alertManagerRulesVersion</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>alertManagerRulesVersion is the version of the tidb cluster that used for alert rules.
+default to current tidb cluster version, for example: v3.0.15</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -1599,6 +1951,13 @@ TidbMonitorStatus
 </tr>
 </tbody>
 </table>
+<h3 id="autoscalerphase">AutoScalerPhase</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#basicautoscalerstatus">BasicAutoScalerStatus</a>)
+</p>
+<p>
+</p>
 <h3 id="brconfig">BRConfig</h3>
 <p>
 (<em>Appears on:</em>
@@ -1930,6 +2289,20 @@ string
 <p>StorageSize is the request storage size for backup job</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="backupschedulestatus">BackupScheduleStatus</h3>
@@ -2004,6 +2377,18 @@ Kubernetes meta/v1.Time
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<code>resources</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
 <tr>
 <td>
 <code>from</code></br>
@@ -2125,6 +2510,20 @@ MydumperConfig
 </tr>
 <tr>
 <td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>affinity</code></br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#affinity-v1-core">
@@ -2212,6 +2611,18 @@ Kubernetes meta/v1.Time
 </td>
 <td>
 <p>TimeCompleted is the time at which the backup was completed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>backupSizeReadable</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>BackupSizeReadable is the data size of the backup.
+the difference with BackupSize is that its format is human readable</p>
 </td>
 </tr>
 <tr>
@@ -2429,6 +2840,19 @@ to fetch the recommended replicas for TiKV/TiDB</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<code>phase</code></br>
+<em>
+<a href="#autoscalerphase">
+AutoScalerPhase
+</a>
+</em>
+</td>
+<td>
+<p>Phase describes cluster auto scaling phase</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>metrics</code></br>
@@ -2696,6 +3120,20 @@ Optional: Defaults to cluster-level setting</p>
 </tr>
 <tr>
 <td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>hostNetwork</code></br>
 <em>
 bool
@@ -2844,6 +3282,75 @@ tidb-operator built envs.
 - POD_NAME
 - BINLOG_ENABLED
 - SLOW_LOG_FILE</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>additionalContainers</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#container-v1-core">
+[]Kubernetes core/v1.Container
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Additional containers of the component.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>additionalVolumes</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#volume-v1-core">
+[]Kubernetes core/v1.Volume
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Additional volumes of component pod. Currently this only
+supports additional volume mounts for sidecar containers.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="configmapref">ConfigMapRef</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#prometheusconfiguration">PrometheusConfiguration</a>)
+</p>
+<p>
+<p>ConfigMapRef is the external configMap</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>if the namespace is omitted, the operator controller would use the Tidbmonitor&rsquo;s namespace instead.</p>
 </td>
 </tr>
 </tbody>
@@ -3096,6 +3603,30 @@ CrdKind
 <td>
 </td>
 </tr>
+<tr>
+<td>
+<code>TiKVGroup</code></br>
+<em>
+<a href="#crdkind">
+CrdKind
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>TiDBGroup</code></br>
+<em>
+<a href="#crdkind">
+CrdKind
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="dashboardconfig">DashboardConfig</h3>
@@ -3116,32 +3647,90 @@ CrdKind
 <tbody>
 <tr>
 <td>
-<code>tidb_cacert_path</code></br>
+<code>tidb-cacert-path</code></br>
 <em>
 string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 </td>
 </tr>
 <tr>
 <td>
-<code>tidb_cert_path</code></br>
+<code>tidb-cert-path</code></br>
 <em>
 string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 </td>
 </tr>
 <tr>
 <td>
-<code>tidb_key_path</code></br>
+<code>tidb-key-path</code></br>
 <em>
 string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>public-path-prefix</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>internal-proxy</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="discoveryspec">DiscoverySpec</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tidbclusterspec">TidbClusterSpec</a>)
+</p>
+<p>
+<p>DiscoverySpec contains details of Discovery members</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>ResourceRequirements</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>ResourceRequirements</code> are embedded into this type.)
+</p>
 </td>
 </tr>
 </tbody>
@@ -4118,7 +4707,9 @@ Kubernetes core/v1.ResourceRequirements
 <h3 id="masterkeyfileconfig">MasterKeyFileConfig</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#tikvmasterkeyconfig">TiKVMasterKeyConfig</a>)
+<a href="#tikvmasterkeyconfig">TiKVMasterKeyConfig</a>, 
+<a href="#tikvsecurityconfigencryptionmasterkey">TiKVSecurityConfigEncryptionMasterKey</a>, 
+<a href="#tikvsecurityconfigencryptionpreviousmasterkey">TiKVSecurityConfigEncryptionPreviousMasterKey</a>)
 </p>
 <p>
 </p>
@@ -4149,7 +4740,9 @@ optional</p>
 <h3 id="masterkeykmsconfig">MasterKeyKMSConfig</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#tikvmasterkeyconfig">TiKVMasterKeyConfig</a>)
+<a href="#tikvmasterkeyconfig">TiKVMasterKeyConfig</a>, 
+<a href="#tikvsecurityconfigencryptionmasterkey">TiKVSecurityConfigEncryptionMasterKey</a>, 
+<a href="#tikvsecurityconfigencryptionpreviousmasterkey">TiKVSecurityConfigEncryptionPreviousMasterKey</a>)
 </p>
 <p>
 </p>
@@ -4229,6 +4822,7 @@ optional</p>
 (<em>Appears on:</em>
 <a href="#pdstatus">PDStatus</a>, 
 <a href="#pumpstatus">PumpStatus</a>, 
+<a href="#ticdcstatus">TiCDCStatus</a>, 
 <a href="#tidbstatus">TiDBStatus</a>, 
 <a href="#tikvstatus">TiKVStatus</a>)
 </p>
@@ -6122,6 +6716,25 @@ Defaults to Kubernetes default storage class.</p>
 </tr>
 <tr>
 <td>
+<code>dataSubDir</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Subdirectory within the volume to store PD Data. By default, the data
+is stored in the root directory of volume which is mounted at
+/var/lib/pd.
+Specifying this will change the data directory to a subdirectory, e.g.
+/var/lib/pd/data if you set the value to &ldquo;data&rdquo;.
+It&rsquo;s dangerous to change this value for a running cluster as it will
+upgrade your cluster to use a new storage directory.
+Defaults to &ldquo;&rdquo; (volume&rsquo;s root).</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>config</code></br>
 <em>
 <a href="#pdconfig">
@@ -6145,6 +6758,18 @@ string
 <em>(Optional)</em>
 <p>TLSClientSecretName is the name of secret which stores tidb server client certificate
 which used by Dashboard.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>enableDashboardInternalProxy</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>EnableDashboardInternalProxy would directly set <code>internal-proxy</code> in the <code>PdConfig</code></p>
 </td>
 </tr>
 </tbody>
@@ -6471,6 +7096,39 @@ bool
 </tr>
 <tr>
 <td>
+<code>agg-push-down-join</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>committer-concurrency</code></br>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>max-txn-ttl</code></br>
+<em>
+uint64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
 <code>txn-entry-count-limit</code></br>
 <em>
 uint64
@@ -6726,6 +7384,48 @@ string
 </tr>
 </tbody>
 </table>
+<h3 id="prometheusconfiguration">PrometheusConfiguration</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#prometheusspec">PrometheusSpec</a>)
+</p>
+<p>
+<p>Config  is the the desired state of Prometheus Configuration</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>configMapRef</code></br>
+<em>
+<a href="#configmapref">
+ConfigMapRef
+</a>
+</em>
+</td>
+<td>
+<p>user can mount prometheus rule config with external configMap.If use this feature, the external configMap must contain <code>prometheus-config</code> key in data.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>commandOptions</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>user can  use it specify prometheus command options</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="prometheusspec">PrometheusSpec</h3>
 <p>
 (<em>Appears on:</em>
@@ -6796,6 +7496,19 @@ int
 <em>
 <a href="#ingressspec">
 IngressSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>config</code></br>
+<em>
+<a href="#prometheusconfiguration">
+PrometheusConfiguration
 </a>
 </em>
 </td>
@@ -7175,6 +7888,18 @@ string
 <tbody>
 <tr>
 <td>
+<code>resources</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
 <code>to</code></br>
 <em>
 <a href="#tidbaccessconfig">
@@ -7313,6 +8038,20 @@ string
 </td>
 <td>
 <p>Specify service account of restore</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
 </td>
 </tr>
 </tbody>
@@ -7777,6 +8516,23 @@ string
 <p>PortName is the name of service port</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>loadBalancerSourceRanges</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LoadBalancerSourceRanges is the loadBalancerSourceRanges of service
+If specified and supported by the platform, this will restrict traffic through the cloud-provider
+load-balancer will be restricted to the specified client IPs. This field will be ignored if the
+cloud-provider does not support the feature.&rdquo;
+More info: <a href="https://kubernetes.io/docs/tasks/access-application-cluster/configure-cloud-provider-firewall/">https://kubernetes.io/docs/tasks/access-application-cluster/configure-cloud-provider-firewall/</a>
+Optional: Defaults to omitted</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="status">Status</h3>
@@ -8071,6 +8827,114 @@ Same for other components.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="ticdccapture">TiCDCCapture</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#ticdcstatus">TiCDCStatus</a>)
+</p>
+<p>
+<p>TiCDCCapture is TiCDC Capture status</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>podName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>id</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ticdcconfig">TiCDCConfig</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#ticdcspec">TiCDCSpec</a>)
+</p>
+<p>
+<p>TiCDCConfig is the configuration of tidbcdc</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>timezone</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Time zone of TiCDC
+Optional: Defaults to UTC</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>gcTTL</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CDC GC safepoint TTL duration, specified in seconds
+Optional: Defaults to 86400</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>logLevel</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LogLevel is the log level
+Optional: Defaults to info</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>logFile</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LogFile is the log file
+Optional: Defaults to /dev/stderr</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ticdcspec">TiCDCSpec</h3>
 <p>
 (<em>Appears on:</em>
@@ -8149,6 +9013,84 @@ string
 <td>
 <em>(Optional)</em>
 <p>Base image of the component, image tag is now allowed during validation</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>config</code></br>
+<em>
+<a href="#ticdcconfig">
+TiCDCConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Config is the Configuration of tidbcdc servers</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ticdcstatus">TiCDCStatus</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tidbclusterstatus">TidbClusterStatus</a>)
+</p>
+<p>
+<p>TiCDCStatus is TiCDC status</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>synced</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>phase</code></br>
+<em>
+<a href="#memberphase">
+MemberPhase
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>statefulSet</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#statefulsetstatus-v1-apps">
+Kubernetes apps/v1.StatefulSetStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>captures</code></br>
+<em>
+<a href="#ticdccapture">
+map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.TiCDCCapture
+</a>
+</em>
+</td>
+<td>
 </td>
 </tr>
 </tbody>
@@ -8360,6 +9302,19 @@ int64
 <td>
 <em>(Optional)</em>
 <p>Optional: Defaults to 34359738368</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tmp-storage-quota</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TempStorageQuota describe the temporary storage Quota during query exector when OOMUseTmpStorage is enabled
+If the quota exceed the capacity of the TempStoragePath, the tidb-server would exit with fatal error</p>
 </td>
 </tr>
 <tr>
@@ -8779,6 +9734,83 @@ Kubernetes meta/v1.Time
 </tr>
 </tbody>
 </table>
+<h3 id="tidbgroupspec">TiDBGroupSpec</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tidbgroup">TiDBGroup</a>)
+</p>
+<p>
+<p>TiDBGroupSpec describes the attributes that a user creates on a TiDBGroup</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>TiDBSpec</code></br>
+<em>
+<a href="#tidbspec">
+TiDBSpec
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>TiDBSpec</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>clusterName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ClusterName describe the target TidbCluster in the same namespace</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tidbgroupstatus">TiDBGroupStatus</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tidbgroup">TiDBGroup</a>)
+</p>
+<p>
+<p>Most recently observed status of the TiDBGroup</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>TiDBStatus</code></br>
+<em>
+<a href="#tidbstatus">
+TiDBStatus
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>TiDBStatus</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="tidbmember">TiDBMember</h3>
 <p>
 (<em>Appears on:</em>
@@ -8960,6 +9992,7 @@ Deprecated, use TidbCluster.HelperImagePullPolicy instead</p>
 <h3 id="tidbspec">TiDBSpec</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#tidbgroupspec">TiDBGroupSpec</a>, 
 <a href="#tidbclusterspec">TidbClusterSpec</a>)
 </p>
 <p>
@@ -9141,6 +10174,7 @@ TiDBConfig
 <h3 id="tidbstatus">TiDBStatus</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#tidbgroupstatus">TiDBGroupStatus</a>, 
 <a href="#tidbclusterstatus">TidbClusterStatus</a>)
 </p>
 <p>
@@ -10096,6 +11130,18 @@ Optional: Defaults to 0</p>
 </tr>
 <tr>
 <td>
+<code>store-liveness-timeout</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StoreLivenessTimeout is the timeout for store liveness check request.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>copr-cache</code></br>
 <em>
 <a href="#coprocessorcache">
@@ -10360,19 +11406,6 @@ TiKVSecurityConfig
 </tr>
 <tr>
 <td>
-<code>encryption</code></br>
-<em>
-<a href="#tikvencryptionconfig">
-TiKVEncryptionConfig
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
 <code>pessimistic-txn</code></br>
 <em>
 <a href="#tikvpessimistictxn">
@@ -10589,6 +11622,18 @@ string
 <td>
 <em>(Optional)</em>
 <p>Optional: Defaults to 10MB</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>use-unified-pool</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to true</p>
 </td>
 </tr>
 </tbody>
@@ -10952,10 +11997,6 @@ TiKVTitanDBConfig
 </table>
 <h3 id="tikvencryptionconfig">TiKVEncryptionConfig</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#tikvconfig">TiKVConfig</a>)
-</p>
-<p>
 </p>
 <table>
 <thead>
@@ -11107,6 +12148,83 @@ string
 </td>
 <td>
 <em>(Optional)</em>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tikvgroupspec">TiKVGroupSpec</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tikvgroup">TiKVGroup</a>)
+</p>
+<p>
+<p>TiKVGroupSpec describes the attributes that a user creates on a TiKVGroup</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>TiKVSpec</code></br>
+<em>
+<a href="#tikvspec">
+TiKVSpec
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>TiKVSpec</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>clusterName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>ClusterName describe the target TidbCluster in the same namespace</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tikvgroupstatus">TiKVGroupStatus</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tikvgroup">TiKVGroup</a>)
+</p>
+<p>
+<p>Most recently observed status of the TiKVGroup</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>TiKVStatus</code></br>
+<em>
+<a href="#tikvstatus">
+TiKVStatus
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>TiKVStatus</code> are embedded into this type.)
+</p>
 </td>
 </tr>
 </tbody>
@@ -11394,22 +12512,28 @@ bool
 <td>
 <code>wait-for-lock-timeout</code></br>
 <em>
-int32
+string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+<p>The default and maximum delay before responding to TiDB when pessimistic
+transactions encounter locks</p>
 </td>
 </tr>
 <tr>
 <td>
 <code>wake-up-delay-duration</code></br>
 <em>
-int32
+string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
+<p>If more than one transaction is waiting for the same lock, only the one with smallest
+start timestamp will be waked up immediately when the lock is released. Others will
+be waked up after <code>wake_up_delay_duration</code> to reduce contention and make the oldest
+one more likely acquires the lock.</p>
 </td>
 </tr>
 <tr>
@@ -11794,6 +12918,33 @@ string
 <em>(Optional)</em>
 <p>When the entry exceed the max size, reject to propose it.
 Optional: Defaults to 8MB</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>raft-max-size-per-msg</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Limit the max size of each append message.
+Optional: Defaults to 1MB</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>raft-max-inflight-msgs</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Limit the max number of in-flight append messages during optimistic
+replication phase.
+Optional: Defaults to 256</p>
 </td>
 </tr>
 <tr>
@@ -12286,6 +13437,30 @@ int64
 </tr>
 <tr>
 <td>
+<code>store-reschedule-duration</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to 3s</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>apply-yield-duration</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to 500ms</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>hibernate-regions</code></br>
 <em>
 bool
@@ -12293,6 +13468,42 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>apply-early</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to false</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>perf-level</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to 0</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dev-assert</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to false</p>
 </td>
 </tr>
 </tbody>
@@ -12433,6 +13644,245 @@ string
 </td>
 <td>
 <em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>encryption</code></br>
+<em>
+<a href="#tikvsecurityconfigencryption">
+TiKVSecurityConfigEncryption
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tikvsecurityconfigencryption">TiKVSecurityConfigEncryption</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tikvsecurityconfig">TiKVSecurityConfig</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>data-encryption-method</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Encryption method to use for data files.
+Possible values are &ldquo;plaintext&rdquo;, &ldquo;aes128-ctr&rdquo;, &ldquo;aes192-ctr&rdquo; and &ldquo;aes256-ctr&rdquo;. Value other than
+&ldquo;plaintext&rdquo; means encryption is enabled, in which case master key must be specified.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>data-key-rotation-period</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Specifies how often TiKV rotates data encryption key.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>master-key</code></br>
+<em>
+<a href="#tikvsecurityconfigencryptionmasterkey">
+TiKVSecurityConfigEncryptionMasterKey
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Specifies master key if encryption is enabled. There are three types of master key:</p>
+<ul>
+<li><p>&ldquo;plaintext&rdquo;:</p>
+<p>Plaintext as master key means no master key is given and only applicable when
+encryption is not enabled, i.e. data-encryption-method = &ldquo;plaintext&rdquo;. This type doesn&rsquo;t
+have sub-config items. Example:</p>
+<p>[security.encryption.master-key]
+type = &ldquo;plaintext&rdquo;</p></li>
+<li><p>&ldquo;kms&rdquo;:</p>
+<p>Use a KMS service to supply master key. Currently only AWS KMS is supported. This type of
+master key is recommended for production use. Example:</p>
+<p>[security.encryption.master-key]
+type = &ldquo;kms&rdquo;</p>
+<h2>KMS CMK key id. Must be a valid KMS CMK where the TiKV process has access to.</h2>
+<h2>In production is recommended to grant access of the CMK to TiKV using IAM.</h2>
+<p>key-id = &ldquo;1234abcd-12ab-34cd-56ef-1234567890ab&rdquo;</p>
+<h2>AWS region of the KMS CMK.</h2>
+<p>region = &ldquo;us-west-2&rdquo;</p>
+<h2>(Optional) AWS KMS service endpoint. Only required when non-default KMS endpoint is</h2>
+<h2>desired.</h2>
+<p>endpoint = &ldquo;<a href="https://kms.us-west-2.amazonaws.com&quot;">https://kms.us-west-2.amazonaws.com&rdquo;</a></p></li>
+<li><p>&ldquo;file&rdquo;:</p>
+<p>Supply a custom encryption key stored in a file. It is recommended NOT to use in production,
+as it breaks the purpose of encryption at rest, unless the file is stored in tempfs.
+The file must contain a 256-bits (32 bytes, regardless of key length implied by
+data-encryption-method) key encoded as hex string and end with newline (&ldquo;\n&rdquo;). Example:</p>
+<p>[security.encryption.master-key]
+type = &ldquo;file&rdquo;
+path = &ldquo;/path/to/master/key/file&rdquo;</p></li>
+</ul>
+</td>
+</tr>
+<tr>
+<td>
+<code>previous-master-key</code></br>
+<em>
+<a href="#tikvsecurityconfigencryptionpreviousmasterkey">
+TiKVSecurityConfigEncryptionPreviousMasterKey
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Specifies the old master key when rotating master key. Same config format as master-key.
+The key is only access once during TiKV startup, after that TiKV do not need access to the key.
+And it is okay to leave the stale previous-master-key config after master key rotation.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tikvsecurityconfigencryptionmasterkey">TiKVSecurityConfigEncryptionMasterKey</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tikvsecurityconfigencryption">TiKVSecurityConfigEncryption</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>type</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>MasterKeyFileConfig</code></br>
+<em>
+<a href="#masterkeyfileconfig">
+MasterKeyFileConfig
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>MasterKeyFileConfig</code> are embedded into this type.)
+</p>
+<p>Master key file config
+If the type set to file, this config should be filled</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>MasterKeyKMSConfig</code></br>
+<em>
+<a href="#masterkeykmsconfig">
+MasterKeyKMSConfig
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>MasterKeyKMSConfig</code> are embedded into this type.)
+</p>
+<p>Master key KMS config
+If the type set to kms, this config should be filled</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tikvsecurityconfigencryptionpreviousmasterkey">TiKVSecurityConfigEncryptionPreviousMasterKey</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tikvsecurityconfigencryption">TiKVSecurityConfigEncryption</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>type</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>MasterKeyFileConfig</code></br>
+<em>
+<a href="#masterkeyfileconfig">
+MasterKeyFileConfig
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>MasterKeyFileConfig</code> are embedded into this type.)
+</p>
+<p>Master key file config
+If the type set to file, this config should be filled</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>MasterKeyKMSConfig</code></br>
+<em>
+<a href="#masterkeykmsconfig">
+MasterKeyKMSConfig
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>MasterKeyKMSConfig</code> are embedded into this type.)
+</p>
+<p>Master key KMS config
+If the type set to kms, this config should be filled</p>
 </td>
 </tr>
 </tbody>
@@ -12758,6 +14208,7 @@ string
 <h3 id="tikvspec">TiKVSpec</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#tikvgroupspec">TiKVGroupSpec</a>, 
 <a href="#tidbclusterspec">TidbClusterSpec</a>)
 </p>
 <p>
@@ -12878,6 +14329,25 @@ Defaults to Kubernetes default storage class.</p>
 </tr>
 <tr>
 <td>
+<code>dataSubDir</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Subdirectory within the volume to store TiKV Data. By default, the data
+is stored in the root directory of volume which is mounted at
+/var/lib/tikv.
+Specifying this will change the data directory to a subdirectory, e.g.
+/var/lib/tikv/data if you set the value to &ldquo;data&rdquo;.
+It&rsquo;s dangerous to change this value for a running cluster as it will
+upgrade your cluster to use a new storage directory.
+Defaults to &ldquo;&rdquo; (volume&rsquo;s root).</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>config</code></br>
 <em>
 <a href="#tikvconfig">
@@ -12895,6 +14365,7 @@ TiKVConfig
 <h3 id="tikvstatus">TiKVStatus</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#tikvgroupstatus">TiKVGroupStatus</a>, 
 <a href="#tidbclusterstatus">TidbClusterStatus</a>)
 </p>
 <p>
@@ -13077,6 +14548,22 @@ TiKVBlockCacheConfig
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>reserve-space</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The size of the temporary file that preoccupies the extra space when
+TiKV is started. The name of temporary file is <code>space_placeholder_file</code>,
+located in the <code>storage.data-dir</code> directory. When TiKV runs out of disk
+space and cannot be started normally, you can delete this file as an
+emergency intervention and set it to <code>0MB</code>. Default value is 2GB.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tikvstoragereadpoolconfig">TiKVStorageReadPoolConfig</h3>
@@ -13176,6 +14663,18 @@ string
 <td>
 <em>(Optional)</em>
 <p>Optional: Defaults to 10MB</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>use-unified-pool</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to true</p>
 </td>
 </tr>
 </tbody>
@@ -13387,6 +14886,28 @@ string
 </td>
 <td>
 <em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>level_merge</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>optional</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>gc-merge-rewrite</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>optional</p>
 </td>
 </tr>
 </tbody>
@@ -13890,6 +15411,19 @@ string
 <tbody>
 <tr>
 <td>
+<code>discovery</code></br>
+<em>
+<a href="#discoveryspec">
+DiscoverySpec
+</a>
+</em>
+</td>
+<td>
+<p>Discovery spec</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>pd</code></br>
 <em>
 <a href="#pdspec">
@@ -14048,6 +15582,20 @@ Kubernetes core/v1.PullPolicy
 </tr>
 <tr>
 <td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>configUpdateStrategy</code></br>
 <em>
 <a href="#configupdatestrategy">
@@ -14196,6 +15744,18 @@ Optional: Defaults to UTC</p>
 Deprecated</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>enableDynamicConfiguration</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>EnableDynamicConfiguration indicates whether DynamicConfiguration is enabled for the tidbcluster</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tidbclusterstatus">TidbClusterStatus</h3>
@@ -14286,6 +15846,18 @@ TiFlashStatus
 </tr>
 <tr>
 <td>
+<code>ticdc</code></br>
+<em>
+<a href="#ticdcstatus">
+TiCDCStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
 <code>monitor</code></br>
 <em>
 <a href="#tidbmonitorref">
@@ -14361,6 +15933,20 @@ Kubernetes core/v1.PullPolicy
 </td>
 <td>
 <em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
 </td>
 </tr>
 <tr>
@@ -14536,6 +16122,18 @@ string
 <p>Name is the name of TidbMonitor object</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>grafanaEnabled</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>GrafanaEnabled indicate whether the grafana is enabled for this target tidbmonitor</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tidbmonitorspec">TidbMonitorSpec</h3>
@@ -14642,6 +16240,20 @@ Kubernetes core/v1.PullPolicy
 </tr>
 <tr>
 <td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>persistent</code></br>
 <em>
 bool
@@ -14734,6 +16346,19 @@ string
 Ref: <a href="https://prometheus.io/docs/alerting/alertmanager/">https://prometheus.io/docs/alerting/alertmanager/</a></p>
 </td>
 </tr>
+<tr>
+<td>
+<code>alertManagerRulesVersion</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>alertManagerRulesVersion is the version of the tidb cluster that used for alert rules.
+default to current tidb cluster version, for example: v3.0.15</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tidbmonitorstatus">TidbMonitorStatus</h3>
@@ -14773,6 +16398,20 @@ BasicAutoScalerSpec
 <p>
 (Members of <code>BasicAutoScalerSpec</code> are embedded into this type.)
 </p>
+</td>
+</tr>
+<tr>
+<td>
+<code>readyToScaleThresholdSeconds</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ReadyToScaleThresholdSeconds represents duration that the ReadyToScale phase
+should last for before auto scaling.
+If not set, the default ReadyToScaleThresholdSeconds will be set to 30.</p>
 </td>
 </tr>
 </tbody>

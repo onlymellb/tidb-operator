@@ -95,6 +95,7 @@ func NewController(
 
 	tcControl := controller.NewRealTidbClusterControl(cli, tcInformer.Lister(), recorder)
 	pdControl := pdapi.NewDefaultPDControl(kubeCli)
+	cdcControl := controller.NewDefaultTiCDCControl(kubeCli)
 	tidbControl := controller.NewDefaultTiDBControl(kubeCli)
 	cmControl := controller.NewRealConfigMapControl(kubeCli, recorder)
 	setControl := controller.NewRealStatefuSetControl(kubeCli, setInformer.Lister(), recorder)
@@ -150,6 +151,7 @@ func NewController(
 				tikvFailover,
 				tikvScaler,
 				tikvUpgrader,
+				recorder,
 			),
 			mm.NewTiDBMemberManager(
 				setControl,
@@ -214,8 +216,18 @@ func NewController(
 				tiflashScaler,
 				tiflashUpgrader,
 			),
+			mm.NewTiCDCMemberManager(
+				pdControl,
+				cdcControl,
+				typedControl,
+				setInformer.Lister(),
+				svcInformer.Lister(),
+				podInformer.Lister(),
+				svcControl,
+				setControl,
+			),
 			mm.NewTidbDiscoveryManager(typedControl),
-			mm.NewTidbClusterStatusManager(cli),
+			mm.NewTidbClusterStatusManager(kubeCli, cli),
 			podRestarter,
 			&tidbClusterConditionUpdater{},
 			recorder,

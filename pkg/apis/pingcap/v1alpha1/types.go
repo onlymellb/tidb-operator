@@ -45,6 +45,8 @@ const (
 	TiKVMemberType MemberType = "tikv"
 	// TiFlashMemberType is tiflash container type
 	TiFlashMemberType MemberType = "tiflash"
+	// TiCDCMemberType is ticdc container type
+	TiCDCMemberType MemberType = "ticdc"
 	// SlowLogTailerMemberType is tidb log tailer container type
 	SlowLogTailerMemberType MemberType = "slowlog"
 	// UnknownMemberType is unknown container type
@@ -59,6 +61,8 @@ const (
 	NormalPhase MemberPhase = "Normal"
 	// UpgradePhase represents the upgrade state of TiDB cluster.
 	UpgradePhase MemberPhase = "Upgrade"
+	// ScalePhase represents the scaling state of TiDB cluster.
+	ScalePhase MemberPhase = "Scale"
 )
 
 // ConfigUpdateStrategy represents the strategy to update configuration
@@ -105,6 +109,9 @@ type TidbClusterList struct {
 // +k8s:openapi-gen=true
 // TidbClusterSpec describes the attributes that a user creates on a tidb cluster
 type TidbClusterSpec struct {
+	// Discovery spec
+	Discovery DiscoverySpec `json:"discovery,omitempty"`
+
 	// PD cluster spec
 	PD PDSpec `json:"pd"`
 
@@ -145,12 +152,16 @@ type TidbClusterSpec struct {
 	SchedulerName string `json:"schedulerName,omitempty"`
 
 	// Persistent volume reclaim policy applied to the PVs that consumed by TiDB cluster
-	// +kubebuilder:default=Recycle
-	PVReclaimPolicy corev1.PersistentVolumeReclaimPolicy `json:"pvReclaimPolicy,omitempty"`
+	// +kubebuilder:default=Retain
+	PVReclaimPolicy *corev1.PersistentVolumeReclaimPolicy `json:"pvReclaimPolicy,omitempty"`
 
 	// ImagePullPolicy of TiDB cluster Pods
 	// +kubebuilder:default=IfNotPresent
 	ImagePullPolicy corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
+
+	// ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
 	// ConfigUpdateStrategy determines how the configuration change is applied to the cluster.
 	// UpdateStrategyInPlace will update the ConfigMap of configuration in-place and an extra rolling-update of the
@@ -206,6 +217,10 @@ type TidbClusterSpec struct {
 	// Deprecated
 	// +k8s:openapi-gen=false
 	Services []Service `json:"services,omitempty"`
+
+	// EnableDynamicConfiguration indicates whether DynamicConfiguration is enabled for the tidbcluster
+	// +optional
+	EnableDynamicConfiguration *bool `json:"enableDynamicConfiguration,omitempty"`
 }
 
 // TidbClusterStatus represents the current status of a tidb cluster.
@@ -216,6 +231,7 @@ type TidbClusterStatus struct {
 	TiDB      TiDBStatus      `json:"tidb,omitempty"`
 	Pump      PumpStatus      `josn:"pump,omitempty"`
 	TiFlash   TiFlashStatus   `json:"tiflash,omitempty"`
+	TiCDC     TiCDCStatus     `json:"ticdc,omitempty"`
 	Monitor   *TidbMonitorRef `json:"monitor,omitempty"`
 	// Represents the latest available observations of a tidb cluster's state.
 	// +optional
@@ -256,6 +272,12 @@ const (
 )
 
 // +k8s:openapi-gen=true
+// DiscoverySpec contains details of Discovery members
+type DiscoverySpec struct {
+	corev1.ResourceRequirements `json:",inline"`
+}
+
+// +k8s:openapi-gen=true
 // PDSpec contains details of PD members
 type PDSpec struct {
 	ComponentSpec               `json:",inline"`
@@ -287,6 +309,17 @@ type PDSpec struct {
 	// +optional
 	StorageClassName *string `json:"storageClassName,omitempty"`
 
+	// Subdirectory within the volume to store PD Data. By default, the data
+	// is stored in the root directory of volume which is mounted at
+	// /var/lib/pd.
+	// Specifying this will change the data directory to a subdirectory, e.g.
+	// /var/lib/pd/data if you set the value to "data".
+	// It's dangerous to change this value for a running cluster as it will
+	// upgrade your cluster to use a new storage directory.
+	// Defaults to "" (volume's root).
+	// +optional
+	DataSubDir string `json:"dataSubDir,omitempty"`
+
 	// Config is the Configuration of pd-servers
 	// +optional
 	Config *PDConfig `json:"config,omitempty"`
@@ -295,6 +328,10 @@ type PDSpec struct {
 	// which used by Dashboard.
 	// +optional
 	TLSClientSecretName *string `json:"tlsClientSecretName,omitempty"`
+
+	// EnableDashboardInternalProxy would directly set `internal-proxy` in the `PdConfig`
+	// +optional
+	EnableDashboardInternalProxy *bool `json:"enableDashboardInternalProxy,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -332,6 +369,17 @@ type TiKVSpec struct {
 	// Defaults to Kubernetes default storage class.
 	// +optional
 	StorageClassName *string `json:"storageClassName,omitempty"`
+
+	// Subdirectory within the volume to store TiKV Data. By default, the data
+	// is stored in the root directory of volume which is mounted at
+	// /var/lib/tikv.
+	// Specifying this will change the data directory to a subdirectory, e.g.
+	// /var/lib/tikv/data if you set the value to "data".
+	// It's dangerous to change this value for a running cluster as it will
+	// upgrade your cluster to use a new storage directory.
+	// Defaults to "" (volume's root).
+	// +optional
+	DataSubDir string `json:"dataSubDir,omitempty"`
 
 	// Config is the Configuration of tikv-servers
 	// +optional
@@ -398,6 +446,34 @@ type TiCDCSpec struct {
 	// +kubebuilder:default=pingcap/ticdc
 	// +optional
 	BaseImage string `json:"baseImage"`
+
+	// Config is the Configuration of tidbcdc servers
+	// +optional
+	Config *TiCDCConfig `json:"config,omitempty"`
+}
+
+// TiCDCConfig is the configuration of tidbcdc
+// +k8s:openapi-gen=true
+type TiCDCConfig struct {
+	// Time zone of TiCDC
+	// Optional: Defaults to UTC
+	// +optional
+	Timezone *string `json:"timezone,omitempty"`
+
+	// CDC GC safepoint TTL duration, specified in seconds
+	// Optional: Defaults to 86400
+	// +optional
+	GCTTL *int32 `json:"gcTTL,omitempty"`
+
+	// LogLevel is the log level
+	// Optional: Defaults to info
+	// +optional
+	LogLevel *string `json:"logLevel,omitempty"`
+
+	// LogFile is the log file
+	// Optional: Defaults to /dev/stderr
+	// +optional
+	LogFile *string `json:"logFile,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -553,6 +629,10 @@ type ComponentSpec struct {
 	// +optional
 	ImagePullPolicy *corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
+	// ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
 	// Whether Hostnetwork of the component is enabled. Override the cluster-level setting if present
 	// Optional: Defaults to cluster-level setting
 	// +optional
@@ -614,6 +694,15 @@ type ComponentSpec struct {
 	// - SLOW_LOG_FILE
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
+
+	// Additional containers of the component.
+	// +optional
+	AdditionalContainers []corev1.Container `json:"additionalContainers,omitempty"`
+
+	// Additional volumes of component pod. Currently this only
+	// supports additional volume mounts for sidecar containers.
+	// +optional
+	AdditionalVolumes []corev1.Volume `json:"additionalVolumes,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -637,6 +726,15 @@ type ServiceSpec struct {
 	// PortName is the name of service port
 	// +optional
 	PortName *string `json:"portName,omitempty"`
+
+	// LoadBalancerSourceRanges is the loadBalancerSourceRanges of service
+	// If specified and supported by the platform, this will restrict traffic through the cloud-provider
+	// load-balancer will be restricted to the specified client IPs. This field will be ignored if the
+	// cloud-provider does not support the feature."
+	// More info: https://kubernetes.io/docs/tasks/access-application-cluster/configure-cloud-provider-firewall/
+	// Optional: Defaults to omitted
+	// +optional
+	LoadBalancerSourceRanges []string `json:"loadBalancerSourceRanges,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -749,6 +847,20 @@ type TiFlashStatus struct {
 	TombstoneStores map[string]TiKVStore        `json:"tombstoneStores,omitempty"`
 	FailureStores   map[string]TiKVFailureStore `json:"failureStores,omitempty"`
 	Image           string                      `json:"image,omitempty"`
+}
+
+// TiCDCStatus is TiCDC status
+type TiCDCStatus struct {
+	Synced      bool                    `json:"synced,omitempty"`
+	Phase       MemberPhase             `json:"phase,omitempty"`
+	StatefulSet *apps.StatefulSetStatus `json:"statefulSet,omitempty"`
+	Captures    map[string]TiCDCCapture `json:"captures,omitempty"`
+}
+
+// TiCDCCapture is TiCDC Capture status
+type TiCDCCapture struct {
+	PodName string `json:"podName,omitempty"`
+	ID      string `json:"id,omitempty"`
 }
 
 // TiKVStores is either Up/Down/Offline/Tombstone
@@ -967,6 +1079,7 @@ type TiDBAccessConfig struct {
 // +k8s:openapi-gen=true
 // BackupSpec contains the backup specification for a tidb cluster.
 type BackupSpec struct {
+	corev1.ResourceRequirements `json:"resources,omitempty"`
 	// From is the tidb cluster that needs to backup.
 	From TiDBAccessConfig `json:"from,omitempty"`
 	// Type is the backup type for tidb cluster.
@@ -990,6 +1103,9 @@ type BackupSpec struct {
 	// Base tolerations of backup Pods, components may add more tolerations upon this respectively
 	// +optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
+	// ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	// Affinity of backup Pods
 	// +optional
 	Affinity *corev1.Affinity `json:"affinity,omitempty"`
@@ -1056,6 +1172,8 @@ const (
 	BackupRetryFailed BackupConditionType = "RetryFailed"
 	// BackupInvalid means invalid backup CR
 	BackupInvalid BackupConditionType = "Invalid"
+	// BackupPrepare means the backup prepare backup process
+	BackupPrepare BackupConditionType = "Prepare"
 )
 
 // BackupCondition describes the observed state of a Backup at a certain point.
@@ -1075,6 +1193,9 @@ type BackupStatus struct {
 	TimeStarted metav1.Time `json:"timeStarted"`
 	// TimeCompleted is the time at which the backup was completed.
 	TimeCompleted metav1.Time `json:"timeCompleted"`
+	// BackupSizeReadable is the data size of the backup.
+	// the difference with BackupSize is that its format is human readable
+	BackupSizeReadable string `json:"backupSizeReadable"`
 	// BackupSize is the data size of the backup.
 	BackupSize int64 `json:"backupSize"`
 	// CommitTs is the snapshot time point of tidb cluster.
@@ -1128,6 +1249,9 @@ type BackupScheduleSpec struct {
 	StorageClassName *string `json:"storageClassName,omitempty"`
 	// StorageSize is the request storage size for backup job
 	StorageSize string `json:"storageSize,omitempty"`
+	// ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
 // BackupScheduleStatus represents the current state of a BackupSchedule.
@@ -1198,6 +1322,7 @@ type RestoreCondition struct {
 // +k8s:openapi-gen=true
 // RestoreSpec contains the specification for a restore of a tidb cluster backup.
 type RestoreSpec struct {
+	corev1.ResourceRequirements `json:"resources,omitempty"`
 	// To is the tidb cluster that needs to restore.
 	To TiDBAccessConfig `json:"to,omitempty"`
 	// Type is the backup type for tidb cluster.
@@ -1226,6 +1351,9 @@ type RestoreSpec struct {
 	UseKMS bool `json:"useKMS,omitempty"`
 	// Specify service account of restore
 	ServiceAccount string `json:"serviceAccount,omitempty"`
+	// ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
 // RestoreStatus represents the current status of a tidb cluster restore.

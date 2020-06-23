@@ -16,6 +16,7 @@ package member
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -36,9 +37,13 @@ import (
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog"
 	podutil "k8s.io/kubernetes/pkg/api/v1/pod"
+	"k8s.io/utils/pointer"
 )
 
 const (
+	// pdDataVolumeMountPath is the mount path for pd data volume
+	pdDataVolumeMountPath = "/var/lib/pd"
+
 	// pdClusterCertPath is where the cert for inter-cluster communication stored (if any)
 	pdClusterCertPath  = "/var/lib/pd-tls"
 	tidbClientCertPath = "/var/lib/tidb-client-tls"
@@ -310,6 +315,8 @@ func (pmm *pdMemberManager) syncTidbClusterStatus(tc *v1alpha1.TidbCluster, set 
 	}
 	if upgrading {
 		tc.Status.PD.Phase = v1alpha1.UpgradePhase
+	} else if tc.PDStsDesiredReplicas() != *set.Spec.Replicas {
+		tc.Status.PD.Phase = v1alpha1.ScalePhase
 	} else {
 		tc.Status.PD.Phase = v1alpha1.NormalPhase
 	}
@@ -419,13 +426,14 @@ func (pmm *pdMemberManager) getNewPDServiceForTidbCluster(tc *v1alpha1.TidbClust
 	tcName := tc.Name
 	svcName := controller.PDMemberName(tcName)
 	instanceName := tc.GetInstanceName()
-	pdLabel := label.New().Instance(instanceName).PD().Labels()
+	pdSelector := label.New().Instance(instanceName).PD()
+	pdLabels := pdSelector.Copy().UsedByEndUser().Labels()
 
 	pdService := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            svcName,
 			Namespace:       ns,
-			Labels:          pdLabel,
+			Labels:          pdLabels,
 			OwnerReferences: []metav1.OwnerReference{controller.GetOwnerRef(tc)},
 		},
 		Spec: corev1.ServiceSpec{
@@ -438,7 +446,7 @@ func (pmm *pdMemberManager) getNewPDServiceForTidbCluster(tc *v1alpha1.TidbClust
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
-			Selector: pdLabel,
+			Selector: pdSelector.Labels(),
 		},
 	}
 	// if set pd service type ,overwrite global variable services
@@ -447,7 +455,7 @@ func (pmm *pdMemberManager) getNewPDServiceForTidbCluster(tc *v1alpha1.TidbClust
 		if svcSpec.Type != "" {
 			pdService.Spec.Type = svcSpec.Type
 		}
-		pdService.ObjectMeta.Annotations = svcSpec.Annotations
+		pdService.ObjectMeta.Annotations = copyAnnotations(svcSpec.Annotations)
 		if svcSpec.LoadBalancerIP != nil {
 			pdService.Spec.LoadBalancerIP = *svcSpec.LoadBalancerIP
 		}
@@ -466,13 +474,14 @@ func getNewPDHeadlessServiceForTidbCluster(tc *v1alpha1.TidbCluster) *corev1.Ser
 	tcName := tc.Name
 	svcName := controller.PDPeerMemberName(tcName)
 	instanceName := tc.GetInstanceName()
-	pdLabel := label.New().Instance(instanceName).PD().Labels()
+	pdSelector := label.New().Instance(instanceName).PD()
+	pdLabels := pdSelector.Copy().UsedByPeer().Labels()
 
 	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            svcName,
 			Namespace:       ns,
-			Labels:          pdLabel,
+			Labels:          pdLabels,
 			OwnerReferences: []metav1.OwnerReference{controller.GetOwnerRef(tc)},
 		},
 		Spec: corev1.ServiceSpec{
@@ -485,7 +494,7 @@ func getNewPDHeadlessServiceForTidbCluster(tc *v1alpha1.TidbCluster) *corev1.Ser
 					Protocol:   corev1.ProtocolTCP,
 				},
 			},
-			Selector:                 pdLabel,
+			Selector:                 pdSelector.Labels(),
 			PublishNotReadyAddresses: true,
 		},
 	}
@@ -540,7 +549,7 @@ func getNewPDSetForTidbCluster(tc *v1alpha1.TidbCluster, cm *corev1.ConfigMap) (
 
 	clusterVersionGE4, err := clusterVersionGreaterThanOrEqualTo4(tc.PDVersion())
 	if err != nil {
-		klog.Warningf("cluster version: %s is not semantic versioning compatible", tc.PDVersion())
+		klog.V(4).Infof("cluster version: %s is not semantic versioning compatible", tc.PDVersion())
 	}
 
 	annMount, annVolume := annotationsMountVolume()
@@ -548,7 +557,7 @@ func getNewPDSetForTidbCluster(tc *v1alpha1.TidbCluster, cm *corev1.ConfigMap) (
 		annMount,
 		{Name: "config", ReadOnly: true, MountPath: "/etc/pd"},
 		{Name: "startup-script", ReadOnly: true, MountPath: "/usr/local/bin"},
-		{Name: v1alpha1.PDMemberType.String(), MountPath: "/var/lib/pd"},
+		{Name: v1alpha1.PDMemberType.String(), MountPath: pdDataVolumeMountPath},
 	}
 	if tc.IsTLSClusterEnabled() {
 		volMounts = append(volMounts, corev1.VolumeMount{
@@ -678,8 +687,8 @@ func getNewPDSetForTidbCluster(tc *v1alpha1.TidbCluster, cm *corev1.ConfigMap) (
 		})
 	}
 	pdContainer.Env = util.AppendEnv(env, basePDSpec.Env())
-	podSpec.Volumes = vols
-	podSpec.Containers = []corev1.Container{pdContainer}
+	podSpec.Volumes = append(vols, basePDSpec.AdditionalVolumes()...)
+	podSpec.Containers = append([]corev1.Container{pdContainer}, basePDSpec.AdditionalContainers()...)
 
 	pdSet := &apps.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -736,7 +745,7 @@ func getPDConfigMap(tc *v1alpha1.TidbCluster) (*corev1.ConfigMap, error) {
 
 	clusterVersionGE4, err := clusterVersionGreaterThanOrEqualTo4(tc.PDVersion())
 	if err != nil {
-		klog.Warningf("cluster version: %s is not semantic versioning compatible", tc.PDVersion())
+		klog.V(4).Infof("cluster version: %s is not semantic versioning compatible", tc.PDVersion())
 	}
 
 	// override CA if tls enabled
@@ -744,25 +753,39 @@ func getPDConfigMap(tc *v1alpha1.TidbCluster) (*corev1.ConfigMap, error) {
 		if config.Security == nil {
 			config.Security = &v1alpha1.PDSecurityConfig{}
 		}
-		config.Security.CAPath = path.Join(pdClusterCertPath, tlsSecretRootCAKey)
-		config.Security.CertPath = path.Join(pdClusterCertPath, corev1.TLSCertKey)
-		config.Security.KeyPath = path.Join(pdClusterCertPath, corev1.TLSPrivateKeyKey)
+		config.Security.CAPath = pointer.StringPtr(path.Join(pdClusterCertPath, tlsSecretRootCAKey))
+		config.Security.CertPath = pointer.StringPtr(path.Join(pdClusterCertPath, corev1.TLSCertKey))
+		config.Security.KeyPath = pointer.StringPtr(path.Join(pdClusterCertPath, corev1.TLSPrivateKeyKey))
 	}
 	// Versions below v4.0 do not support Dashboard
 	if tc.Spec.TiDB.IsTLSClientEnabled() && !tc.SkipTLSWhenConnectTiDB() && clusterVersionGE4 {
 		if config.Dashboard == nil {
 			config.Dashboard = &v1alpha1.DashboardConfig{}
 		}
-		config.Dashboard.TiDBCAPath = path.Join(tidbClientCertPath, tlsSecretRootCAKey)
-		config.Dashboard.TiDBCertPath = path.Join(tidbClientCertPath, corev1.TLSCertKey)
-		config.Dashboard.TiDBKeyPath = path.Join(tidbClientCertPath, corev1.TLSPrivateKeyKey)
+		config.Dashboard.TiDBCAPath = pointer.StringPtr(path.Join(tidbClientCertPath, tlsSecretRootCAKey))
+		config.Dashboard.TiDBCertPath = pointer.StringPtr(path.Join(tidbClientCertPath, corev1.TLSCertKey))
+		config.Dashboard.TiDBKeyPath = pointer.StringPtr(path.Join(tidbClientCertPath, corev1.TLSPrivateKeyKey))
+	}
+
+	if tc.Spec.PD.EnableDashboardInternalProxy != nil {
+		if config.Dashboard != nil {
+			// EnableDashboardInternalProxy has a higher priority to cover the configuration in Dashboard
+			config.Dashboard.InternalProxy = pointer.BoolPtr(*tc.Spec.PD.EnableDashboardInternalProxy)
+		} else {
+			config.Dashboard = &v1alpha1.DashboardConfig{
+				InternalProxy: pointer.BoolPtr(*tc.Spec.PD.EnableDashboardInternalProxy),
+			}
+		}
 	}
 
 	confText, err := MarshalTOML(config)
 	if err != nil {
 		return nil, err
 	}
-	startScript, err := RenderPDStartScript(&PDStartScriptModel{Scheme: tc.Scheme()})
+	startScript, err := RenderPDStartScript(&PDStartScriptModel{
+		Scheme:  tc.Scheme(),
+		DataDir: filepath.Join(pdDataVolumeMountPath, tc.Spec.PD.DataSubDir),
+	})
 	if err != nil {
 		return nil, err
 	}

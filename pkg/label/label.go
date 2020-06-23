@@ -38,7 +38,9 @@ const (
 
 	// NamespaceLabelKey is label key used in PV for easy querying
 	NamespaceLabelKey string = "app.kubernetes.io/namespace"
-
+	// UsedByLabelKey indicate where it is used. for example, tidb has two services,
+	// one for internal component access and the other for end-user
+	UsedByLabelKey string = "app.kubernetes.io/used-by"
 	// ClusterIDLabelKey is cluster id label key
 	ClusterIDLabelKey string = "tidb.pingcap.com/cluster-id"
 	// StoreIDLabelKey is store id label key
@@ -109,6 +111,12 @@ const (
 	// AnnTiKVLastAutoScalingTimestamp is annotation key of tidbclusterto which ordinal is created by tikv auto-scaling
 	AnnTiKVLastAutoScalingTimestamp = "tikv.tidb.pingcap.com/last-autoscaling-timestamp"
 
+	// AnnTiKVReadyToScaleTimestamp records timestamp when tikv ready to scale
+	AnnTiKVReadyToScaleTimestamp = "tikv.tidb.pingcap.com/ready-to-scale-timestamp"
+
+	// AnnLastSyncingTimestamp records last sync timestamp
+	AnnLastSyncingTimestamp = "tidb.pingcap.com/last-syncing-timestamp"
+
 	// AnnTiDBConsecutiveScaleOutCount describes the least consecutive count to scale-out for tidb
 	AnnTiDBConsecutiveScaleOutCount = "tidb.tidb.pingcap.com/consecutive-scale-out-count"
 	// AnnTiDBConsecutiveScaleInCount describes the least consecutive count to scale-in for tidb
@@ -135,8 +143,10 @@ const (
 	TiDBLabelVal string = "tidb"
 	// TiKVLabelVal is TiKV label value
 	TiKVLabelVal string = "tikv"
-	// TiFlashLabelVal is TiKV label value
+	// TiFlashLabelVal is TiFlash label value
 	TiFlashLabelVal string = "tiflash"
+	// TiCDCLabelVal is TiCDC label value
+	TiCDCLabelVal string = "ticdc"
 	// PumpLabelVal is Pump label value
 	PumpLabelVal string = "pump"
 	// DiscoveryLabelVal is Discovery label value
@@ -215,6 +225,24 @@ func (l Label) Instance(name string) Label {
 	return l
 }
 
+// UserBy adds use-by kv pair to label
+func (l Label) UsedBy(name string) Label {
+	l[UsedByLabelKey] = name
+	return l
+}
+
+// UsedByPeer adds used-by=peer label
+func (l Label) UsedByPeer() Label {
+	l[UsedByLabelKey] = "peer"
+	return l
+}
+
+// UsedByEndUser adds use-by=end-user label
+func (l Label) UsedByEndUser() Label {
+	l[UsedByLabelKey] = "end-user"
+	return l
+}
+
 // Namespace adds namespace kv pair to label
 func (l Label) Namespace(name string) Label {
 	l[NamespaceLabelKey] = name
@@ -286,9 +314,17 @@ func (l Label) Pump() Label {
 	return l
 }
 
+func (l Label) IsPump() bool {
+	return l[ComponentLabelKey] == PumpLabelVal
+}
+
 func (l Label) Monitor() Label {
 	l.Component(TiDBMonitorVal)
 	return l
+}
+
+func (l Label) IsMonitor() bool {
+	return l[ComponentLabelKey] == TiDBMonitorVal
 }
 
 // Discovery assigns discovery to component key in label
@@ -325,6 +361,17 @@ func (l Label) IsTiFlash() bool {
 	return l[ComponentLabelKey] == TiFlashLabelVal
 }
 
+// TiCDC assigns ticdc to component key in label
+func (l Label) TiCDC() Label {
+	l.Component(TiCDCLabelVal)
+	return l
+}
+
+// IsTiCDC returns whether label is a TiCDC
+func (l Label) IsTiCDC() bool {
+	return l[ComponentLabelKey] == TiCDCLabelVal
+}
+
 // IsTiKV returns whether label is a TiKV
 func (l Label) IsTiKV() bool {
 	return l[ComponentLabelKey] == TiKVLabelVal
@@ -348,6 +395,15 @@ func (l Label) LabelSelector() *metav1.LabelSelector {
 // Labels converts label to map[string]string
 func (l Label) Labels() map[string]string {
 	return l
+}
+
+// Copy copy the value of label to avoid pointer copy
+func (l Label) Copy() Label {
+	copyLabel := make(Label)
+	for k, v := range l {
+		copyLabel[k] = v
+	}
+	return copyLabel
 }
 
 // String converts label to a string
