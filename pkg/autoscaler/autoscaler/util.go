@@ -18,34 +18,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jonboulle/clockwork"
 	"github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1"
-	"github.com/pingcap/tidb-operator/pkg/controller"
 	"github.com/pingcap/tidb-operator/pkg/label"
 	operatorUtils "github.com/pingcap/tidb-operator/pkg/util"
 	appsv1 "k8s.io/api/apps/v1"
-	autoscalingv2beta2 "k8s.io/api/autoscaling/v2beta2"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/pointer"
 )
-
-const (
-	annScaleOutSuffix = "tidb.pingcap.com/consecutive-scale-out-count"
-	annScaleInSuffix  = "tidb.pingcap.com/consecutive-scale-in-count"
-
-	invalidMemberTypeErrorMsg    = "tac[%s/%s] invalid set MemberType:%s"
-	invalidTacAnnotationErrorMsg = "tac[%s/%s] annotation invalid set,err:%v"
-)
-
-var defaultMetricSpec = autoscalingv2beta2.MetricSpec{
-	Type: autoscalingv2beta2.ResourceMetricSourceType,
-	Resource: &autoscalingv2beta2.ResourceMetricSource{
-		Name: corev1.ResourceCPU,
-		Target: autoscalingv2beta2.MetricTarget{
-			AverageUtilization: pointer.Int32Ptr(80),
-		},
-	},
-}
 
 // checkStsAutoScalingPrerequisites would check the sts status to ensure wouldn't happen during
 // upgrading, scaling
@@ -59,79 +38,6 @@ func checkStsAutoScalingPrerequisites(set *appsv1.StatefulSet) bool {
 	return true
 }
 
-func checkStsAutoScaling(tac *v1alpha1.TidbClusterAutoScaler, thresholdSeconds, intervalSeconds int32, memberType v1alpha1.MemberType) (bool, error) {
-	realClock := clockwork.NewRealClock()
-	if tac.Annotations == nil {
-		tac.Annotations = map[string]string{}
-	}
-	// 3*controller.ResyncDuration is maximum time allowed before reset phase status
-	ableToScale, err := checkLastSyncingTimestamp(tac, 3*controller.ResyncDuration, realClock)
-	if err != nil {
-		return false, err
-	}
-	if !ableToScale {
-		return false, nil
-	}
-	ableToScale, err = checkStsReadyAutoScalingTimestamp(tac, thresholdSeconds, realClock)
-	if err != nil {
-		return false, err
-	}
-	if !ableToScale {
-		return false, nil
-	}
-	ableToScale, err = checkStsAutoScalingInterval(tac, intervalSeconds, memberType)
-	if err != nil {
-		return false, err
-	}
-	if !ableToScale {
-		return false, nil
-	}
-	return true, nil
-}
-
-// checkLastSyncingTimestamp reset TiKV phase if last auto scaling timestamp is longer than thresholdSec
-func checkLastSyncingTimestamp(tac *v1alpha1.TidbClusterAutoScaler, thresholdSec time.Duration, clock clockwork.Clock) (bool, error) {
-	if tac.Annotations == nil {
-		tac.Annotations = map[string]string{}
-	}
-
-	lastAutoScalingTimestamp, existed := tac.Annotations[label.AnnLastSyncingTimestamp]
-	if !existed {
-		// NOTE: because record autoscaler sync timestamp happens after check auto scale,
-		// label will not exist during first sync, return allow auto scale in this case.
-		return true, nil
-	}
-	t, err := strconv.ParseInt(lastAutoScalingTimestamp, 10, 64)
-	if err != nil {
-		return false, err
-	}
-	// if there's no resync within thresholdSec, reset TiKV phase to Normal
-	if clock.Now().After(time.Unix(t, 0).Add(thresholdSec)) {
-		tac.Status.TiKV.Phase = v1alpha1.NormalAutoScalerPhase
-		return false, nil
-	}
-	return true, nil
-}
-
-// checkStsReadyAutoScalingTimestamp would check whether there is enough time window after ready to scale
-func checkStsReadyAutoScalingTimestamp(tac *v1alpha1.TidbClusterAutoScaler, thresholdSeconds int32, clock clockwork.Clock) (bool, error) {
-	readyAutoScalingTimestamp, existed := tac.Annotations[label.AnnTiKVReadyToScaleTimestamp]
-
-	if !existed {
-		tac.Annotations[label.AnnTiKVReadyToScaleTimestamp] = fmt.Sprintf("%d", clock.Now().Unix())
-		return false, nil
-	}
-	t, err := strconv.ParseInt(readyAutoScalingTimestamp, 10, 32)
-	if err != nil {
-		return false, err
-	}
-	readyAutoScalingSec := int32(clock.Now().Sub(time.Unix(t, 0)).Seconds())
-	if thresholdSeconds > readyAutoScalingSec {
-		return false, nil
-	}
-	return true, nil
-}
-
 // checkStsAutoScalingInterval would check whether there is enough interval duration between every two auto-scaling
 func checkStsAutoScalingInterval(tac *v1alpha1.TidbClusterAutoScaler, intervalSeconds int32, memberType v1alpha1.MemberType) (bool, error) {
 	lastAutoScalingTimestamp, existed := tac.Annotations[label.AnnTiDBLastAutoScalingTimestamp]
@@ -143,7 +49,7 @@ func checkStsAutoScalingInterval(tac *v1alpha1.TidbClusterAutoScaler, intervalSe
 	}
 	t, err := strconv.ParseInt(lastAutoScalingTimestamp, 10, 64)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("tac[%s/%s] parse last auto-scaling timestamp failed,err:%v", tac.Namespace, tac.Name, err)
 	}
 	if intervalSeconds > int32(time.Now().Sub(time.Unix(t, 0)).Seconds()) {
 		return false, nil
@@ -200,6 +106,9 @@ func limitTargetReplicas(targetReplicas int32, tac *v1alpha1.TidbClusterAutoScal
 // If the Metrics not set, the default metric will be set to 80% average CPU utilization.
 // defaultTAC would default the omitted value
 func defaultTAC(tac *v1alpha1.TidbClusterAutoScaler) {
+	if tac.Annotations == nil {
+		tac.Annotations = map[string]string{}
+	}
 	if tac.Spec.TiKV != nil {
 		if tac.Spec.TiKV.MinReplicas == nil {
 			tac.Spec.TiKV.MinReplicas = pointer.Int32Ptr(1)
@@ -212,15 +121,20 @@ func defaultTAC(tac *v1alpha1.TidbClusterAutoScaler) {
 		}
 		// If ExternalEndpoint is not provided, we would set default metrics
 		if tac.Spec.TiKV.ExternalEndpoint == nil {
-			if len(tac.Spec.TiKV.Metrics) == 0 {
-				tac.Spec.TiKV.Metrics = append(tac.Spec.TiKV.Metrics, defaultMetricSpec)
-			}
 			if tac.Spec.TiKV.MetricsTimeDuration == nil {
 				tac.Spec.TiKV.MetricsTimeDuration = pointer.StringPtr("3m")
 			}
 		}
-		if tac.Spec.TiKV.ReadyToScaleThresholdSeconds == nil {
-			tac.Spec.TiKV.ReadyToScaleThresholdSeconds = pointer.Int32Ptr(30)
+		for id, m := range tac.Spec.TiKV.Metrics {
+			if m.Resource != nil && m.Resource.Name == corev1.ResourceStorage {
+				if m.LeastStoragePressurePeriodSeconds == nil {
+					m.LeastStoragePressurePeriodSeconds = pointer.Int64Ptr(300)
+				}
+				if m.LeastRemainAvailableStoragePercent == nil {
+					m.LeastRemainAvailableStoragePercent = pointer.Int64Ptr(10)
+				}
+				tac.Spec.TiKV.Metrics[id] = m
+			}
 		}
 	}
 
@@ -235,9 +149,6 @@ func defaultTAC(tac *v1alpha1.TidbClusterAutoScaler) {
 			tac.Spec.TiDB.ScaleInIntervalSeconds = pointer.Int32Ptr(500)
 		}
 		if tac.Spec.TiDB.ExternalEndpoint == nil {
-			if len(tac.Spec.TiDB.Metrics) == 0 {
-				tac.Spec.TiDB.Metrics = append(tac.Spec.TiDB.Metrics, defaultMetricSpec)
-			}
 			if tac.Spec.TiDB.MetricsTimeDuration == nil {
 				tac.Spec.TiDB.MetricsTimeDuration = pointer.StringPtr("3m")
 			}
@@ -249,29 +160,6 @@ func defaultTAC(tac *v1alpha1.TidbClusterAutoScaler) {
 			tac.Spec.Monitor.Namespace = tac.Namespace
 		}
 	}
-}
-
-func resetAutoScalingAnn(tac *v1alpha1.TidbClusterAutoScaler) {
-	tac.Annotations[label.AnnAutoScalingTargetNamespace] = tac.Spec.Cluster.Namespace
-	tac.Annotations[label.AnnAutoScalingTargetName] = tac.Spec.Cluster.Name
-}
-
-// checkAndUpdateTacRef would compare the target tidbcluster ref stored in the annotations
-// and in the Spec. It not equal, the previous stored status would be empty and the stored Ref
-// would be updated.
-func checkAndUpdateTacAnn(tac *v1alpha1.TidbClusterAutoScaler) {
-	if tac.Annotations == nil {
-		tac.Annotations = map[string]string{}
-		resetAutoScalingAnn(tac)
-		return
-	}
-	name := tac.Annotations[label.AnnAutoScalingTargetName]
-	namespace := tac.Annotations[label.AnnAutoScalingTargetNamespace]
-	if name == tac.Spec.Cluster.Name && namespace == tac.Spec.Cluster.Namespace {
-		return
-	}
-	// If not satisfied, reset tac Ann
-	resetAutoScalingAnn(tac)
 }
 
 func genMetricsEndpoint(tac *v1alpha1.TidbClusterAutoScaler) (string, error) {

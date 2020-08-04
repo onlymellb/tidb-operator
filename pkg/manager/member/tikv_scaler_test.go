@@ -29,6 +29,7 @@ import (
 	kubeinformers "k8s.io/client-go/informers"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/utils/pointer"
 )
 
 func TestTiKVScalerScaleOut(t *testing.T) {
@@ -44,8 +45,7 @@ func TestTiKVScalerScaleOut(t *testing.T) {
 		changed       bool
 	}
 
-	testFn := func(test *testcase, t *testing.T) {
-		t.Log(test.name)
+	testFn := func(test testcase, t *testing.T) {
 		tc := newTidbClusterForPD()
 
 		if test.tikvUpgrading {
@@ -53,8 +53,9 @@ func TestTiKVScalerScaleOut(t *testing.T) {
 		}
 
 		oldSet := newStatefulSetForPDScale()
+		oldSet.Name = fmt.Sprintf("%s-tikv", tc.Name)
 		newSet := oldSet.DeepCopy()
-		newSet.Spec.Replicas = controller.Int32Ptr(7)
+		newSet.Spec.Replicas = pointer.Int32Ptr(7)
 
 		scaler, _, pvcIndexer, _, pvcControl := newFakeTiKVScaler()
 
@@ -93,8 +94,8 @@ func TestTiKVScalerScaleOut(t *testing.T) {
 			hasDeferAnn:   false,
 			annoIsNil:     true,
 			pvcDeleteErr:  false,
-			errExpectFn:   errExpectNil,
-			changed:       true,
+			errExpectFn:   errExpectNotNil,
+			changed:       false,
 		},
 		{
 			name:          "tikv is upgrading",
@@ -103,7 +104,7 @@ func TestTiKVScalerScaleOut(t *testing.T) {
 			hasDeferAnn:   false,
 			annoIsNil:     true,
 			pvcDeleteErr:  false,
-			errExpectFn:   errExpectNil,
+			errExpectFn:   errExpectNotNil,
 			changed:       false,
 		},
 		{
@@ -123,8 +124,8 @@ func TestTiKVScalerScaleOut(t *testing.T) {
 			hasDeferAnn:   false,
 			annoIsNil:     false,
 			pvcDeleteErr:  false,
-			errExpectFn:   errExpectNil,
-			changed:       true,
+			errExpectFn:   errExpectNotNil,
+			changed:       false,
 		},
 		{
 			name:          "pvc annotations defer deletion is not nil, pvc delete failed",
@@ -137,8 +138,10 @@ func TestTiKVScalerScaleOut(t *testing.T) {
 		},
 	}
 
-	for i := range tests {
-		testFn(&tests[i], t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testFn(tt, t)
+		})
 	}
 }
 
@@ -160,8 +163,7 @@ func TestTiKVScalerScaleIn(t *testing.T) {
 
 	controller.ResyncDuration = 0
 
-	testFn := func(test *testcase, t *testing.T) {
-		t.Log(test.name)
+	testFn := func(test testcase, t *testing.T) {
 		tc := newTidbClusterForPD()
 		test.storeFun(tc)
 
@@ -171,7 +173,7 @@ func TestTiKVScalerScaleIn(t *testing.T) {
 
 		oldSet := newStatefulSetForPDScale()
 		newSet := oldSet.DeepCopy()
-		newSet.Spec.Replicas = controller.Int32Ptr(3)
+		newSet.Spec.Replicas = pointer.Int32Ptr(3)
 
 		pod := &corev1.Pod{
 			TypeMeta: metav1.TypeMeta{Kind: "Pod", APIVersion: "v1"},
@@ -252,9 +254,9 @@ func TestTiKVScalerScaleIn(t *testing.T) {
 			changed:       false,
 		},
 		{
-			name:          "tikv is upgrading",
+			name:          "able to scale in while upgrading",
 			tikvUpgrading: true,
-			storeFun:      normalStoreFun,
+			storeFun:      tombstoneStoreFun,
 			delStoreErr:   false,
 			hasPVC:        true,
 			storeIDSynced: true,
@@ -262,7 +264,7 @@ func TestTiKVScalerScaleIn(t *testing.T) {
 			hasSynced:     true,
 			pvcUpdateErr:  false,
 			errExpectFn:   errExpectNil,
-			changed:       false,
+			changed:       true,
 		},
 		{
 			name:          "status.TiKV.Stores is empty",
@@ -422,8 +424,10 @@ func TestTiKVScalerScaleIn(t *testing.T) {
 		},
 	}
 
-	for i := range tests {
-		testFn(&tests[i], t)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testFn(tt, t)
+		})
 	}
 }
 

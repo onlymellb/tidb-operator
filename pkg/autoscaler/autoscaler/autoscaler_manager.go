@@ -14,8 +14,8 @@
 package autoscaler
 
 import (
+	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,6 +28,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -79,12 +80,20 @@ func (am *autoScalerManager) Sync(tac *v1alpha1.TidbClusterAutoScaler) error {
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Target TidbCluster Ref is deleted, empty the auto-scaling status
-			resetAutoScalingAnn(tac)
 			return nil
 		}
 		return err
 	}
-	checkAndUpdateTacAnn(tac)
+	permitted, err := am.checkAutoScalerRef(tc, tac)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	if !permitted {
+		klog.Infof("tac[%s/%s]'s auto-scaling is no permitted", tac.Namespace, tac.Name)
+		return nil
+	}
+
 	oldTc := tc.DeepCopy()
 	if err := am.syncAutoScaling(tc, tac); err != nil {
 		return err
@@ -137,47 +146,22 @@ func (am *autoScalerManager) updateAutoScaling(oldTc *v1alpha1.TidbCluster,
 	if tac.Annotations == nil {
 		tac.Annotations = map[string]string{}
 	}
-	f := func(key string) (*time.Time, error) {
-		v, ok := tac.Annotations[key]
-		if ok {
-			ts, err := strconv.ParseInt(v, 10, 64)
-			if err != nil {
-				klog.Errorf("failed to convert label[%s] key to int64, err:%v", key, err)
-				return nil, err
-			}
-			t := time.Unix(ts, 0)
-			return &t, nil
-		}
-		return nil, nil
-	}
-
-	tac.Annotations[label.AnnLastSyncingTimestamp] = fmt.Sprintf("%d", time.Now().Unix())
-
+	now := time.Now()
+	tac.Annotations[label.AnnLastSyncingTimestamp] = fmt.Sprintf("%d", now.Unix())
 	if tac.Spec.TiKV != nil {
 		if oldTc.Status.TiKV.StatefulSet != nil {
 			tac.Status.TiKV.CurrentReplicas = oldTc.Status.TiKV.StatefulSet.CurrentReplicas
 		}
-		lastTimestamp, err := f(label.AnnTiKVLastAutoScalingTimestamp)
-		if err != nil {
-			return err
-		}
-		if lastTimestamp != nil {
-			tac.Status.TiKV.LastAutoScalingTimestamp = &metav1.Time{Time: *lastTimestamp}
-		}
+		tac.Status.TiKV.LastAutoScalingTimestamp = &metav1.Time{Time: now}
 	} else {
 		tac.Status.TiKV = nil
 	}
+
 	if tac.Spec.TiDB != nil {
 		if oldTc.Status.TiDB.StatefulSet != nil {
 			tac.Status.TiDB.CurrentReplicas = oldTc.Status.TiDB.StatefulSet.CurrentReplicas
 		}
-		lastTimestamp, err := f(label.AnnTiDBLastAutoScalingTimestamp)
-		if err != nil {
-			return err
-		}
-		if lastTimestamp != nil {
-			tac.Status.TiDB.LastAutoScalingTimestamp = &metav1.Time{Time: *lastTimestamp}
-		}
+		tac.Status.TiDB.LastAutoScalingTimestamp = &metav1.Time{Time: now}
 	} else {
 		tac.Status.TiDB = nil
 	}
@@ -191,21 +175,68 @@ func (am *autoScalerManager) updateTidbClusterAutoScaler(tac *v1alpha1.TidbClust
 	oldTac := tac.DeepCopy()
 
 	// don't wait due to limited number of clients, but backoff after the default number of steps
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		var updateErr error
 		_, updateErr = am.cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Update(tac)
 		if updateErr == nil {
 			klog.Infof("TidbClusterAutoScaler: [%s/%s] updated successfully", ns, tacName)
 			return nil
 		}
-		klog.Errorf("failed to update TidbClusterAutoScaler: [%s/%s], error: %v", ns, tacName, updateErr)
+		klog.V(4).Infof("failed to update TidbClusterAutoScaler: [%s/%s], error: %v", ns, tacName, updateErr)
 		if updated, err := am.taLister.TidbClusterAutoScalers(ns).Get(tacName); err == nil {
 			// make a copy so we don't mutate the shared cache
 			tac = updated.DeepCopy()
 			tac.Annotations = oldTac.Annotations
+			tac.Status = oldTac.Status
 		} else {
 			utilruntime.HandleError(fmt.Errorf("error getting updated TidbClusterAutoScaler %s/%s from lister: %v", ns, tacName, err))
 		}
 		return updateErr
 	})
+	if err != nil {
+		klog.Errorf("failed to update TidbClusterAutoScaler: [%s/%s], error: %v", ns, tacName, err)
+	}
+	return err
+}
+
+// checkAutoScalerRef will first check whether the target tidbcluster's auto-scaler reference have been occupied.
+// If it has been, and the reference scaler is the current auto-scaler itself, the auto-scaler would be permitted,
+// otherwise the auto-scaling would be forbidden.
+// If the target tidbcluster's auto-scaler reference is empty, then the auto-scaler will try to patch itself to the
+// references, and if the patching is success, the auto-scaling would discard the current syncing and wait for the next
+// syncing round.
+func (am *autoScalerManager) checkAutoScalerRef(tc *v1alpha1.TidbCluster, tac *v1alpha1.TidbClusterAutoScaler) (bool, error) {
+	if tc.Status.AutoScaler != nil {
+		if tc.Status.AutoScaler.Name == tac.Name && tc.Status.AutoScaler.Namespace == tac.Namespace {
+			return true, nil
+		}
+		msg := fmt.Sprintf("tac[%s/%s]'s target tc[%s/%s] already controlled by another auto-scaler", tac.Namespace, tac.Name, tc.Namespace, tc.Name)
+		klog.Info(msg)
+		return false, nil
+	}
+	klog.Infof("tac[%s/%s]'s tc[%s/%s] start to occupy the auto-scaler ref", tac.Namespace, tac.Name, tc.Namespace, tc.Name)
+	err := am.patchAutoScalerRef(tc, tac)
+	return true, err
+}
+
+func (am *autoScalerManager) patchAutoScalerRef(tc *v1alpha1.TidbCluster, tac *v1alpha1.TidbClusterAutoScaler) error {
+	mergePatch, err := json.Marshal(map[string]interface{}{
+		"status": map[string]interface{}{
+			"auto-scaler": map[string]interface{}{
+				"name":      tac.Name,
+				"namespace": tac.Namespace,
+			},
+		},
+	})
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	_, err = am.cli.PingcapV1alpha1().TidbClusters(tc.Namespace).Patch(tc.Name, types.MergePatchType, mergePatch)
+	if err != nil {
+		klog.Error(err)
+		return err
+	}
+	msg := fmt.Sprintf("tac[%s/%s] patch itself to tc[%s/%s] auto-scaler ref success, do auto-scaling in next round", tac.Namespace, tac.Name, tc.Namespace, tc.Name)
+	return controller.RequeueErrorf(msg)
 }

@@ -47,8 +47,6 @@ const (
 	clusterCertPath = "/var/lib/tidb-tls"
 	// serverCertPath is where the tidb-server cert stored (if any)
 	serverCertPath = "/var/lib/tidb-server-tls"
-	// serviceAccountCAPath is where is CABundle of serviceaccount locates
-	serviceAccountCAPath = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
 	// tlsSecretRootCAKey is the key used in tls secret for the root CA.
 	// When user use self-signed certificates, the root CA must be provided. We
 	// following the same convention used in Kubernetes service token.
@@ -100,6 +98,11 @@ func NewTiDBMemberManager(setControl controller.StatefulSetControlInterface,
 }
 
 func (tmm *tidbMemberManager) Sync(tc *v1alpha1.TidbCluster) error {
+	// If tikv is not specified return
+	if tc.Spec.TiDB == nil {
+		return nil
+	}
+
 	ns := tc.GetNamespace()
 	tcName := tc.GetName()
 
@@ -171,7 +174,7 @@ func (tmm *tidbMemberManager) syncTiDBHeadlessServiceForTidbCluster(tc *v1alpha1
 		return tmm.svcControl.CreateService(tc, newSvc)
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("syncTiDBHeadlessServiceForTidbCluster: failed to get svc %s for cluster %s/%s, error: %s", controller.TiDBPeerMemberName(tcName), ns, tcName, err)
 	}
 
 	oldSvc := oldSvcTmp.DeepCopy()
@@ -200,7 +203,7 @@ func (tmm *tidbMemberManager) syncTiDBStatefulSetForTidbCluster(tc *v1alpha1.Tid
 
 	oldTiDBSetTemp, err := tmm.setLister.StatefulSets(ns).Get(controller.TiDBMemberName(tcName))
 	if err != nil && !errors.IsNotFound(err) {
-		return err
+		return fmt.Errorf("syncTiDBStatefulSetForTidbCluster: failed to get sts %s for cluster %s/%s, error: %s", controller.TiDBMemberName(tcName), ns, tcName, err)
 	}
 	setNotExist := errors.IsNotFound(err)
 
@@ -301,7 +304,7 @@ func (tmm *tidbMemberManager) syncTiDBService(tc *v1alpha1.TidbCluster) error {
 		return tmm.svcControl.CreateService(tc, newSvc)
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("syncTiDBService: failed to get svc %s for cluster %s/%s, error: %s", newSvc.Name, ns, tc.GetName(), err)
 	}
 	oldSvc := oldSvcTmp.DeepCopy()
 	util.RetainManagedFields(newSvc, oldSvc)
@@ -449,6 +452,7 @@ func getNewTiDBServiceOrNil(tc *v1alpha1.TidbCluster) *corev1.Service {
 			Port:       4000,
 			TargetPort: intstr.FromInt(4000),
 			Protocol:   corev1.ProtocolTCP,
+			NodePort:   svcSpec.GetMySQLNodePort(),
 		},
 	}
 	if svcSpec.ShouldExposeStatus() {
@@ -457,6 +461,7 @@ func getNewTiDBServiceOrNil(tc *v1alpha1.TidbCluster) *corev1.Service {
 			Port:       10080,
 			TargetPort: intstr.FromInt(10080),
 			Protocol:   corev1.ProtocolTCP,
+			NodePort:   svcSpec.GetStatusNodePort(),
 		})
 	}
 
@@ -691,7 +696,7 @@ func getNewTiDBSetForTidbCluster(tc *v1alpha1.TidbCluster, cm *corev1.ConfigMap)
 		},
 	}
 
-	containers = append(containers, corev1.Container{
+	c := corev1.Container{
 		Name:            v1alpha1.TiDBMemberType.String(),
 		Image:           tc.TiDBImage(),
 		Command:         []string{"/bin/sh", "/usr/local/bin/tidb_start_script.sh"},
@@ -719,7 +724,12 @@ func getNewTiDBSetForTidbCluster(tc *v1alpha1.TidbCluster, cm *corev1.ConfigMap)
 			},
 			InitialDelaySeconds: int32(10),
 		},
-	})
+	}
+	if tc.Spec.TiDB.Lifecycle != nil {
+		c.Lifecycle = tc.Spec.TiDB.Lifecycle
+	}
+
+	containers = append(containers, c)
 
 	podSpec := baseTiDBSpec.BuildPodSpec()
 	podSpec.Containers = append(containers, baseTiDBSpec.AdditionalContainers()...)
@@ -743,7 +753,7 @@ func getNewTiDBSetForTidbCluster(tc *v1alpha1.TidbCluster, cm *corev1.ConfigMap)
 			OwnerReferences: []metav1.OwnerReference{controller.GetOwnerRef(tc)},
 		},
 		Spec: apps.StatefulSetSpec{
-			Replicas: controller.Int32Ptr(tc.TiDBStsDesiredReplicas()),
+			Replicas: pointer.Int32Ptr(tc.TiDBStsDesiredReplicas()),
 			Selector: tidbLabel.LabelSelector(),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -755,10 +765,11 @@ func getNewTiDBSetForTidbCluster(tc *v1alpha1.TidbCluster, cm *corev1.ConfigMap)
 			ServiceName:         controller.TiDBPeerMemberName(tcName),
 			PodManagementPolicy: apps.ParallelPodManagement,
 			UpdateStrategy: apps.StatefulSetUpdateStrategy{Type: apps.RollingUpdateStatefulSetStrategyType,
-				RollingUpdate: &apps.RollingUpdateStatefulSetStrategy{Partition: controller.Int32Ptr(tc.TiDBStsDesiredReplicas())},
+				RollingUpdate: &apps.RollingUpdateStatefulSetStrategy{Partition: pointer.Int32Ptr(tc.TiDBStsDesiredReplicas())},
 			},
 		},
 	}
+
 	return tidbSet
 }
 
@@ -777,6 +788,8 @@ func (tmm *tidbMemberManager) syncTidbClusterStatus(tc *v1alpha1.TidbCluster, se
 	if upgrading && tc.Status.TiKV.Phase != v1alpha1.UpgradePhase &&
 		tc.Status.PD.Phase != v1alpha1.UpgradePhase && tc.Status.Pump.Phase != v1alpha1.UpgradePhase {
 		tc.Status.TiDB.Phase = v1alpha1.UpgradePhase
+	} else if tc.TiDBStsDesiredReplicas() != *set.Spec.Replicas {
+		tc.Status.TiDB.Phase = v1alpha1.ScalePhase
 	} else {
 		tc.Status.TiDB.Phase = v1alpha1.NormalPhase
 	}
@@ -803,7 +816,7 @@ func (tmm *tidbMemberManager) syncTidbClusterStatus(tc *v1alpha1.TidbCluster, se
 		}
 		pod, err := tmm.podLister.Pods(tc.GetNamespace()).Get(name)
 		if err != nil && !errors.IsNotFound(err) {
-			return err
+			return fmt.Errorf("syncTidbClusterStatus: failed to get pods %s for cluster %s/%s, error: %s", name, tc.GetNamespace(), tc.GetName(), err)
 		}
 		if pod != nil && pod.Spec.NodeName != "" {
 			// Update assiged node if pod exists and is scheduled
@@ -833,7 +846,7 @@ func tidbStatefulSetIsUpgrading(podLister corelisters.PodLister, set *apps.State
 	}
 	tidbPods, err := podLister.Pods(tc.GetNamespace()).List(selector)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("tidbStatefulSetIsUpgrading: failed to get pods for cluster %s/%s, selector %s, error: %s", tc.GetNamespace(), tc.GetInstanceName(), selector, err)
 	}
 	for _, pod := range tidbPods {
 		revisionHash, exist := pod.Labels[apps.ControllerRevisionHashLabelKey]

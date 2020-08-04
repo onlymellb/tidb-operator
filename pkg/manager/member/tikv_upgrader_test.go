@@ -206,7 +206,7 @@ func TestTiKVUpgraderUpgrade(t *testing.T) {
 				SetStatefulSetLastAppliedConfigAnnotation(oldSet)
 				oldSet.Status.CurrentReplicas = 2
 				oldSet.Status.UpdatedReplicas = 1
-				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = controller.Int32Ptr(2)
+				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = pointer.Int32Ptr(2)
 			},
 			changePods: func(pods []*corev1.Pod) {
 				for _, pod := range pods {
@@ -347,7 +347,7 @@ func TestTiKVUpgraderUpgrade(t *testing.T) {
 				SetStatefulSetLastAppliedConfigAnnotation(oldSet)
 				oldSet.Status.CurrentReplicas = 2
 				oldSet.Status.UpdatedReplicas = 1
-				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = controller.Int32Ptr(2)
+				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = pointer.Int32Ptr(2)
 			},
 			changePods:          nil,
 			beginEvictLeaderErr: false,
@@ -375,7 +375,7 @@ func TestTiKVUpgraderUpgrade(t *testing.T) {
 				SetStatefulSetLastAppliedConfigAnnotation(oldSet)
 				oldSet.Status.CurrentReplicas = 2
 				oldSet.Status.UpdatedReplicas = 1
-				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = controller.Int32Ptr(2)
+				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = pointer.Int32Ptr(2)
 			},
 			changePods: func(pods []*corev1.Pod) {
 				for _, pod := range pods {
@@ -409,7 +409,7 @@ func TestTiKVUpgraderUpgrade(t *testing.T) {
 				SetStatefulSetLastAppliedConfigAnnotation(oldSet)
 				oldSet.Status.CurrentReplicas = 2
 				oldSet.Status.UpdatedReplicas = 1
-				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = controller.Int32Ptr(2)
+				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = pointer.Int32Ptr(2)
 			},
 			changePods:          nil,
 			beginEvictLeaderErr: true,
@@ -437,7 +437,7 @@ func TestTiKVUpgraderUpgrade(t *testing.T) {
 				SetStatefulSetLastAppliedConfigAnnotation(oldSet)
 				oldSet.Status.CurrentReplicas = 2
 				oldSet.Status.UpdatedReplicas = 1
-				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = controller.Int32Ptr(2)
+				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = pointer.Int32Ptr(2)
 			},
 			changePods: func(pods []*corev1.Pod) {
 				for _, pod := range pods {
@@ -469,7 +469,7 @@ func TestTiKVUpgraderUpgrade(t *testing.T) {
 				SetStatefulSetLastAppliedConfigAnnotation(oldSet)
 				oldSet.Status.CurrentReplicas = 2
 				oldSet.Status.UpdatedReplicas = 1
-				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = controller.Int32Ptr(2)
+				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = pointer.Int32Ptr(2)
 			},
 			changePods: func(pods []*corev1.Pod) {
 				for _, pod := range pods {
@@ -501,7 +501,7 @@ func TestTiKVUpgraderUpgrade(t *testing.T) {
 				SetStatefulSetLastAppliedConfigAnnotation(oldSet)
 				oldSet.Status.CurrentReplicas = 2
 				oldSet.Status.UpdatedReplicas = 1
-				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = controller.Int32Ptr(2)
+				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = pointer.Int32Ptr(2)
 			},
 			changePods:          nil,
 			beginEvictLeaderErr: false,
@@ -527,7 +527,7 @@ func TestTiKVUpgraderUpgrade(t *testing.T) {
 				SetStatefulSetLastAppliedConfigAnnotation(oldSet)
 				oldSet.Status.CurrentReplicas = 2
 				oldSet.Status.UpdatedReplicas = 1
-				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = controller.Int32Ptr(2)
+				oldSet.Spec.UpdateStrategy.RollingUpdate.Partition = pointer.Int32Ptr(2)
 			},
 			changePods: func(pods []*corev1.Pod) {
 				for _, pod := range pods {
@@ -553,7 +553,7 @@ func TestTiKVUpgraderUpgrade(t *testing.T) {
 	}
 }
 
-func newTiKVUpgrader() (Upgrader, *pdapi.FakePDControl, *controller.FakePodControl, podinformers.PodInformer) {
+func newTiKVUpgrader() (TiKVUpgrader, *pdapi.FakePDControl, *controller.FakePodControl, podinformers.PodInformer) {
 	kubeCli := kubefake.NewSimpleClientset()
 	podInformer := kubeinformers.NewSharedInformerFactory(kubeCli, 0).Core().V1().Pods()
 	podControl := controller.NewFakePodControl(podInformer)
@@ -573,7 +573,7 @@ func newStatefulSetForTiKVUpgrader() *apps.StatefulSet {
 			Labels:    label.New().Instance(upgradeInstanceName).TiKV().Labels(),
 		},
 		Spec: apps.StatefulSetSpec{
-			Replicas: controller.Int32Ptr(3),
+			Replicas: pointer.Int32Ptr(3),
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
@@ -587,7 +587,7 @@ func newStatefulSetForTiKVUpgrader() *apps.StatefulSet {
 			UpdateStrategy: apps.StatefulSetUpdateStrategy{
 				Type: apps.RollingUpdateStatefulSetStrategyType,
 				RollingUpdate: &apps.RollingUpdateStatefulSetStrategy{
-					Partition: controller.Int32Ptr(3),
+					Partition: pointer.Int32Ptr(3),
 				}},
 		},
 	}
@@ -618,14 +618,14 @@ func newTidbClusterForTiKVUpgrader() *v1alpha1.TidbCluster {
 			Labels:    label.New().Instance(upgradeInstanceName).TiKV().Labels(),
 		},
 		Spec: v1alpha1.TidbClusterSpec{
-			PD: v1alpha1.PDSpec{
+			PD: &v1alpha1.PDSpec{
 				ComponentSpec: v1alpha1.ComponentSpec{
 					Image: "pd-test-image",
 				},
 				Replicas:         3,
 				StorageClassName: pointer.StringPtr("my-storage-class"),
 			},
-			TiKV: v1alpha1.TiKVSpec{
+			TiKV: &v1alpha1.TiKVSpec{
 				ComponentSpec: v1alpha1.ComponentSpec{
 					Image: "tikv-test-image",
 				},

@@ -18,6 +18,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"path"
 
 	"github.com/BurntSushi/toml"
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
@@ -29,7 +30,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiequality "k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -149,18 +152,15 @@ func setUpgradePartition(set *apps.StatefulSet, upgradeOrdinal int32) {
 	klog.Infof("set %s/%s partition to %d", set.GetNamespace(), set.GetName(), upgradeOrdinal)
 }
 
-func imagePullFailed(pod *corev1.Pod) bool {
-	for _, container := range pod.Status.ContainerStatuses {
-		if container.State.Waiting != nil && container.State.Waiting.Reason != "" &&
-			(container.State.Waiting.Reason == ImagePullBackOff || container.State.Waiting.Reason == ErrImagePull) {
-			return true
-		}
+func MemberPodName(controllerName, controllerKind string, ordinal int32, memberType v1alpha1.MemberType) (string, error) {
+	switch controllerKind {
+	case v1alpha1.TiDBClusterKind:
+		return fmt.Sprintf("%s-%s-%d", controllerName, memberType.String(), ordinal), nil
+	case v1alpha1.TiKVGroupKind:
+		return fmt.Sprintf("%s-%s-group-%d", controllerName, memberType.String(), ordinal), nil
+	default:
+		return "", fmt.Errorf("unknown controller kind[%s]", controllerKind)
 	}
-	return false
-}
-
-func MemberPodName(tcName string, ordinal int32, memberType v1alpha1.MemberType) string {
-	return fmt.Sprintf("%s-%s-%d", tcName, memberType.String(), ordinal)
 }
 
 func TikvPodName(tcName string, ordinal int32) string {
@@ -173,6 +173,10 @@ func PdPodName(tcName string, ordinal int32) string {
 
 func tidbPodName(tcName string, ordinal int32) string {
 	return fmt.Sprintf("%s-%d", controller.TiDBMemberName(tcName), ordinal)
+}
+
+func TiKVGroupPodName(tgName string, ordinal int32) string {
+	return fmt.Sprintf("%s-%d", controller.TiKVGroupMemberName(tgName), ordinal)
 }
 
 // CombineAnnotations merges two annotations maps
@@ -279,7 +283,7 @@ func MapContainers(podSpec *corev1.PodSpec) map[string]corev1.Container {
 }
 
 // updateStatefulSet is a template function to update the statefulset of components
-func updateStatefulSet(setCtl controller.StatefulSetControlInterface, tc *v1alpha1.TidbCluster, newSet, oldSet *apps.StatefulSet) error {
+func updateStatefulSet(setCtl controller.StatefulSetControlInterface, object runtime.Object, newSet, oldSet *apps.StatefulSet) error {
 	isOrphan := metav1.GetControllerOf(oldSet) == nil
 	if newSet.Annotations == nil {
 		newSet.Annotations = map[string]string{}
@@ -314,15 +318,11 @@ func updateStatefulSet(setCtl controller.StatefulSetControlInterface, tc *v1alph
 		if err != nil {
 			return err
 		}
-		_, err = setCtl.UpdateStatefulSet(tc, &set)
+		_, err = setCtl.UpdateStatefulSet(object, &set)
 		return err
 	}
 
 	return nil
-}
-
-func clusterSecretName(tc *v1alpha1.TidbCluster, component string) string {
-	return fmt.Sprintf("%s-%s-cluster-secret", tc.Name, component)
 }
 
 // filter targetContainer by  containerName, If not find, then return nil
@@ -344,4 +344,31 @@ func copyAnnotations(src map[string]string) map[string]string {
 		dst[k] = v
 	}
 	return dst
+}
+
+func getTikVConfigMapForTiKVSpec(tikvSpec *v1alpha1.TiKVSpec, tc *v1alpha1.TidbCluster, scriptModel *TiKVStartScriptModel) (*corev1.ConfigMap, error) {
+	config := tikvSpec.Config
+	if tc.IsTLSClusterEnabled() {
+		if config.Security == nil {
+			config.Security = &v1alpha1.TiKVSecurityConfig{}
+		}
+		config.Security.CAPath = pointer.StringPtr(path.Join(tikvClusterCertPath, tlsSecretRootCAKey))
+		config.Security.CertPath = pointer.StringPtr(path.Join(tikvClusterCertPath, corev1.TLSCertKey))
+		config.Security.KeyPath = pointer.StringPtr(path.Join(tikvClusterCertPath, corev1.TLSPrivateKeyKey))
+	}
+	confText, err := MarshalTOML(config)
+	if err != nil {
+		return nil, err
+	}
+	startScript, err := RenderTiKVStartScript(scriptModel)
+	if err != nil {
+		return nil, err
+	}
+	cm := &corev1.ConfigMap{
+		Data: map[string]string{
+			"config-file":    transformTiKVConfigMap(string(confText), tc),
+			"startup-script": startScript,
+		},
+	}
+	return cm, nil
 }

@@ -85,9 +85,9 @@ var _ = ginkgo.Describe("[tidb-operator] TiDBCluster", func() {
 	var fwCancel context.CancelFunc
 	var fw portforward.PortForward
 	/**
-	 * StatefulSet or AdvancedStatefulSet interface.
+	 * StatefulSet or AdvancedStatefulSet getter interface.
 	 */
-	var stsGetter func(namespace string) typedappsv1.StatefulSetInterface
+	var stsGetter typedappsv1.StatefulSetsGetter
 	var crdUtil *tests.CrdTestUtil
 
 	ginkgo.BeforeEach(func() {
@@ -115,12 +115,12 @@ var _ = ginkgo.Describe("[tidb-operator] TiDBCluster", func() {
 		cfg = e2econfig.TestConfig
 		ocfg = e2econfig.NewDefaultOperatorConfig(cfg)
 		if ocfg.Enabled(features.AdvancedStatefulSet) {
-			stsGetter = helper.NewHijackClient(c, asCli).AppsV1().StatefulSets
+			stsGetter = helper.NewHijackClient(c, asCli).AppsV1()
 		} else {
-			stsGetter = c.AppsV1().StatefulSets
+			stsGetter = c.AppsV1()
 		}
 		oa = tests.NewOperatorActions(cli, c, asCli, aggrCli, apiExtCli, tests.DefaultPollInterval, ocfg, e2econfig.TestConfig, nil, fw, f)
-		crdUtil = tests.NewCrdTestUtil(cli, c, asCli, false)
+		crdUtil = tests.NewCrdTestUtil(cli, c, asCli, stsGetter)
 	})
 
 	ginkgo.AfterEach(func() {
@@ -428,7 +428,7 @@ var _ = ginkgo.Describe("[tidb-operator] TiDBCluster", func() {
 			}
 		}
 
-		oldPumpSet, err := stsGetter(tc.Namespace).Get(controller.PumpMemberName(tc.Name), metav1.GetOptions{})
+		oldPumpSet, err := stsGetter.StatefulSets(tc.Namespace).Get(controller.PumpMemberName(tc.Name), metav1.GetOptions{})
 		framework.ExpectNoError(err, "Expected get pump statefulset")
 
 		oldRev := oldPumpSet.Status.CurrentRevision
@@ -484,7 +484,7 @@ var _ = ginkgo.Describe("[tidb-operator] TiDBCluster", func() {
 		framework.ExpectNoError(err, "Expected update tc")
 
 		err = wait.PollImmediate(5*time.Second, 5*time.Minute, func() (bool, error) {
-			pumpSet, err := stsGetter(tc.Namespace).Get(controller.PumpMemberName(tc.Name), metav1.GetOptions{})
+			pumpSet, err := stsGetter.StatefulSets(tc.Namespace).Get(controller.PumpMemberName(tc.Name), metav1.GetOptions{})
 			if errors.IsNotFound(err) {
 				return false, err
 			}
@@ -580,7 +580,7 @@ var _ = ginkgo.Describe("[tidb-operator] TiDBCluster", func() {
 		}
 
 		for setName := range setNameToRevision {
-			oldSet, err := stsGetter(tc.Namespace).Get(setName, metav1.GetOptions{})
+			oldSet, err := stsGetter.StatefulSets(tc.Namespace).Get(setName, metav1.GetOptions{})
 			framework.ExpectNoError(err, "Expected get statefulset %s", setName)
 
 			oldRev := oldSet.Status.CurrentRevision
@@ -611,7 +611,7 @@ var _ = ginkgo.Describe("[tidb-operator] TiDBCluster", func() {
 			framework.ExpectEqual(tc.Status.TiDB.Phase, v1alpha1.NormalPhase, "TiDB should not be updated")
 
 			for setName, oldRev := range setNameToRevision {
-				newSet, err := stsGetter(tc.Namespace).Get(setName, metav1.GetOptions{})
+				newSet, err := stsGetter.StatefulSets(tc.Namespace).Get(setName, metav1.GetOptions{})
 				framework.ExpectNoError(err, "Expected get tidb statefulset")
 				framework.ExpectEqual(newSet.Status.CurrentRevision, oldRev, "Expected no rolling-update of %s when manage config in-place", setName)
 				framework.ExpectEqual(newSet.Status.UpdateRevision, oldRev, "Expected no rolling-update of %s when manage config in-place", setName)
@@ -625,7 +625,7 @@ var _ = ginkgo.Describe("[tidb-operator] TiDBCluster", func() {
 
 		err = wait.PollImmediate(5*time.Second, 3*time.Minute, func() (bool, error) {
 			for setName := range setNameToRevision {
-				newSet, err := stsGetter(tc.Namespace).Get(setName, metav1.GetOptions{})
+				newSet, err := stsGetter.StatefulSets(tc.Namespace).Get(setName, metav1.GetOptions{})
 				if err != nil {
 					return false, err
 				}
@@ -980,15 +980,23 @@ var _ = ginkgo.Describe("[tidb-operator] TiDBCluster", func() {
 	})
 
 	ginkgo.Context("[Feature: TLS]", func() {
-		ginkgo.It("TLS for MySQL Client and TLS between TiDB components", func() {
+		ginkgo.BeforeEach(func() {
 			ginkgo.By("Installing cert-manager")
 			err := installCertManager(f.ClientSet)
 			framework.ExpectNoError(err, "failed to install cert-manager")
+		})
 
+		ginkgo.AfterEach(func() {
+			ginkgo.By("Deleting cert-manager")
+			err := deleteCertManager(f.ClientSet)
+			framework.ExpectNoError(err, "failed to delete cert-manager")
+		})
+
+		ginkgo.It("TLS for MySQL Client and TLS between TiDB components", func() {
 			tcName := "tls"
 
 			ginkgo.By("Installing tidb issuer")
-			err = installTiDBIssuer(ns, tcName)
+			err := installTiDBIssuer(ns, tcName)
 			framework.ExpectNoError(err, "failed to generate tidb issuer template")
 
 			ginkgo.By("Installing tidb server and client certificate")
@@ -1017,10 +1025,12 @@ var _ = ginkgo.Describe("[tidb-operator] TiDBCluster", func() {
 			tc.Spec.TiDB.TLSClient = &v1alpha1.TiDBTLSClient{Enabled: true}
 			tc.Spec.TLSCluster = &v1alpha1.TLSCluster{Enabled: true}
 			tc.Spec.Pump = &v1alpha1.PumpSpec{
-				Replicas:             2,
+				Replicas:             1,
 				BaseImage:            "pingcap/tidb-binlog",
 				ResourceRequirements: fixture.WithStorage(fixture.BurstbleSmall, "1Gi"),
-				GenericConfig:        tcconfig.New(map[string]interface{}{}),
+				GenericConfig: tcconfig.New(map[string]interface{}{
+					"addr": "0.0.0.0:8250",
+				}),
 			}
 			err = genericCli.Create(context.TODO(), tc)
 			framework.ExpectNoError(err)
@@ -1029,7 +1039,7 @@ var _ = ginkgo.Describe("[tidb-operator] TiDBCluster", func() {
 
 			ginkgo.By("Ensure Dashboard use custom secret")
 			foundSecretName := false
-			pdSts, err := stsGetter(ns).Get(controller.PDMemberName(tcName), metav1.GetOptions{})
+			pdSts, err := stsGetter.StatefulSets(ns).Get(controller.PDMemberName(tcName), metav1.GetOptions{})
 			framework.ExpectNoError(err)
 			for _, vol := range pdSts.Spec.Template.Spec.Volumes {
 				if vol.Name == "tidb-client-tls" {
@@ -1129,10 +1139,6 @@ var _ = ginkgo.Describe("[tidb-operator] TiDBCluster", func() {
 			framework.ExpectNoError(err)
 			err = oa.WaitForTidbClusterReady(tc, 30*time.Minute, 15*time.Second)
 			framework.ExpectNoError(err)
-
-			ginkgo.By("Deleting cert-manager")
-			err = deleteCertManager(f.ClientSet)
-			framework.ExpectNoError(err, "failed to delete cert-manager")
 		})
 	})
 

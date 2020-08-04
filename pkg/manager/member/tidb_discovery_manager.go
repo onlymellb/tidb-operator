@@ -26,6 +26,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -46,6 +47,10 @@ func NewTidbDiscoveryManager(typedControl controller.TypedControlInterface) Tidb
 
 func (m *realTidbDiscoveryManager) Reconcile(tc *v1alpha1.TidbCluster) error {
 
+	// If PD is not specified return
+	if tc.Spec.PD == nil {
+		return nil
+	}
 	meta, _ := getDiscoveryMeta(tc, controller.DiscoveryMemberName)
 
 	// Ensure RBAC
@@ -136,7 +141,7 @@ func getTidbDiscoveryDeployment(tc *v1alpha1.TidbCluster) (*appsv1.Deployment, e
 		ObjectMeta: meta,
 		Spec: appsv1.DeploymentSpec{
 			Strategy: appsv1.DeploymentStrategy{Type: appsv1.RecreateDeploymentStrategyType},
-			Replicas: controller.Int32Ptr(1),
+			Replicas: pointer.Int32Ptr(1),
 			Selector: l.LabelSelector(),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{

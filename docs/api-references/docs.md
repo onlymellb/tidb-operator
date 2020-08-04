@@ -61,7 +61,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -88,7 +88,7 @@ BackupSpec
 <td>
 <code>resources</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -190,22 +190,22 @@ BRConfig
 </tr>
 <tr>
 <td>
-<code>mydumper</code></br>
+<code>dumpling</code></br>
 <em>
-<a href="#mydumperconfig">
-MydumperConfig
+<a href="#dumplingconfig">
+DumplingConfig
 </a>
 </em>
 </td>
 <td>
-<p>MydumperConfig is the configs for mydumper</p>
+<p>DumplingConfig is the configs for dumpling</p>
 </td>
 </tr>
 <tr>
 <td>
 <code>tolerations</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#toleration-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
 []Kubernetes core/v1.Toleration
 </a>
 </em>
@@ -219,7 +219,7 @@ MydumperConfig
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -233,7 +233,7 @@ MydumperConfig
 <td>
 <code>affinity</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#affinity-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core">
 Kubernetes core/v1.Affinity
 </a>
 </em>
@@ -263,6 +263,19 @@ string
 </td>
 <td>
 <p>Specify service account of backup</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cleanPolicy</code></br>
+<em>
+<a href="#cleanpolicytype">
+CleanPolicyType
+</a>
+</em>
+</td>
+<td>
+<p>CleanPolicy denotes whether to clean backup data when the object is deleted from the cluster, if not set, the backup data will be retained</p>
 </td>
 </tr>
 </table>
@@ -315,7 +328,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -424,7 +437,7 @@ string
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -484,7 +497,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -511,7 +524,7 @@ RestoreSpec
 <td>
 <code>resources</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -615,7 +628,7 @@ BRConfig
 <td>
 <code>tolerations</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#toleration-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
 []Kubernetes core/v1.Toleration
 </a>
 </em>
@@ -629,7 +642,7 @@ BRConfig
 <td>
 <code>affinity</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#affinity-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core">
 Kubernetes core/v1.Affinity
 </a>
 </em>
@@ -665,7 +678,7 @@ string
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -725,7 +738,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -826,7 +839,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -927,7 +940,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -974,6 +987,7 @@ PDSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>PD cluster spec</p>
 </td>
 </tr>
@@ -987,6 +1001,7 @@ TiDBSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>TiDB cluster spec</p>
 </td>
 </tr>
@@ -1000,6 +1015,7 @@ TiKVSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>TiKV cluster spec</p>
 </td>
 </tr>
@@ -1100,7 +1116,7 @@ string
 <td>
 <code>pvReclaimPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#persistentvolumereclaimpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#persistentvolumereclaimpolicy-v1-core">
 Kubernetes core/v1.PersistentVolumeReclaimPolicy
 </a>
 </em>
@@ -1113,7 +1129,7 @@ Kubernetes core/v1.PersistentVolumeReclaimPolicy
 <td>
 <code>imagePullPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#pullpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
 Kubernetes core/v1.PullPolicy
 </a>
 </em>
@@ -1126,7 +1142,7 @@ Kubernetes core/v1.PullPolicy
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -1198,7 +1214,7 @@ Optional: Defaults to false</p>
 <td>
 <code>affinity</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#affinity-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core">
 Kubernetes core/v1.Affinity
 </a>
 </em>
@@ -1249,7 +1265,7 @@ map[string]string
 <td>
 <code>tolerations</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#toleration-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
 []Kubernetes core/v1.Toleration
 </a>
 </em>
@@ -1349,7 +1365,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -1493,7 +1509,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -1543,7 +1559,7 @@ TidbClusterRef
 <td>
 <code>imagePullPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#pullpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
 Kubernetes core/v1.PullPolicy
 </a>
 </em>
@@ -1556,7 +1572,7 @@ Kubernetes core/v1.PullPolicy
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -1617,7 +1633,7 @@ string
 <td>
 <code>resources</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -1702,7 +1718,7 @@ string
 <td>
 <code>metadata</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#objectmeta-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
 Kubernetes meta/v1.ObjectMeta
 </a>
 </em>
@@ -1791,7 +1807,7 @@ InitializerSpec
 <td>
 <code>pvReclaimPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#persistentvolumereclaimpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#persistentvolumereclaimpolicy-v1-core">
 Kubernetes core/v1.PersistentVolumeReclaimPolicy
 </a>
 </em>
@@ -1804,7 +1820,7 @@ Kubernetes core/v1.PersistentVolumeReclaimPolicy
 <td>
 <code>imagePullPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#pullpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
 Kubernetes core/v1.PullPolicy
 </a>
 </em>
@@ -1816,7 +1832,7 @@ Kubernetes core/v1.PullPolicy
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -1885,7 +1901,7 @@ map[string]string
 <td>
 <code>tolerations</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#toleration-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
 []Kubernetes core/v1.Toleration
 </a>
 </em>
@@ -1933,6 +1949,19 @@ string
 default to current tidb cluster version, for example: v3.0.15</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>additionalContainers</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#container-v1-core">
+[]Kubernetes core/v1.Container
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -1952,10 +1981,6 @@ TidbMonitorStatus
 </tbody>
 </table>
 <h3 id="autoscalerphase">AutoScalerPhase</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#basicautoscalerstatus">BasicAutoScalerStatus</a>)
-</p>
 <p>
 </p>
 <h3 id="brconfig">BRConfig</h3>
@@ -2141,7 +2166,7 @@ BackupConditionType
 <td>
 <code>status</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#conditionstatus-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#conditionstatus-v1-core">
 Kubernetes core/v1.ConditionStatus
 </a>
 </em>
@@ -2153,7 +2178,7 @@ Kubernetes core/v1.ConditionStatus
 <td>
 <code>lastTransitionTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2293,7 +2318,7 @@ string
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -2336,7 +2361,7 @@ string
 <td>
 <code>lastBackupTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2349,7 +2374,7 @@ Kubernetes meta/v1.Time
 <td>
 <code>allBackupCleanTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2381,7 +2406,7 @@ Kubernetes meta/v1.Time
 <td>
 <code>resources</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -2483,22 +2508,22 @@ BRConfig
 </tr>
 <tr>
 <td>
-<code>mydumper</code></br>
+<code>dumpling</code></br>
 <em>
-<a href="#mydumperconfig">
-MydumperConfig
+<a href="#dumplingconfig">
+DumplingConfig
 </a>
 </em>
 </td>
 <td>
-<p>MydumperConfig is the configs for mydumper</p>
+<p>DumplingConfig is the configs for dumpling</p>
 </td>
 </tr>
 <tr>
 <td>
 <code>tolerations</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#toleration-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
 []Kubernetes core/v1.Toleration
 </a>
 </em>
@@ -2512,7 +2537,7 @@ MydumperConfig
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -2526,7 +2551,7 @@ MydumperConfig
 <td>
 <code>affinity</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#affinity-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core">
 Kubernetes core/v1.Affinity
 </a>
 </em>
@@ -2556,6 +2581,19 @@ string
 </td>
 <td>
 <p>Specify service account of backup</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cleanPolicy</code></br>
+<em>
+<a href="#cleanpolicytype">
+CleanPolicyType
+</a>
+</em>
+</td>
+<td>
+<p>CleanPolicy denotes whether to clean backup data when the object is deleted from the cluster, if not set, the backup data will be retained</p>
 </td>
 </tr>
 </tbody>
@@ -2591,7 +2629,7 @@ string
 <td>
 <code>timeStarted</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2604,7 +2642,7 @@ Kubernetes meta/v1.Time
 <td>
 <code>timeCompleted</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2747,21 +2785,13 @@ If not set, the default ScaleOutIntervalSeconds will be set to 300</p>
 <td>
 <code>metrics</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#metricspec-v2beta2-autoscaling">
-[]Kubernetes autoscaling/v2beta2.MetricSpec
+<a href="#custommetric">
+[]CustomMetric
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>metrics contains the specifications for which to use to calculate the
-desired replica count (the maximum replica count across all metrics will
-be used).  The desired replica count is calculated multiplying the
-ratio between the target value and the current value by the current
-number of pods.  Ergo, metrics used must decrease as the pod count is
-increased, and vice-versa.  See the individual metric source types for
-more information about how each type of metric must respond.
-If not set, the default metric will be set to 80% average CPU utilization.</p>
 </td>
 </tr>
 <tr>
@@ -2773,37 +2803,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>MetricsTimeDuration describe the Time duration to be queried in the Prometheus</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>scaleOutThreshold</code></br>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ScaleOutThreshold describe the consecutive threshold for the auto-scaling,
-if the consecutive counts of the scale-out result in auto-scaling reach this number,
-the auto-scaling would be performed.
-If not set, the default value is 3.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>scaleInThreshold</code></br>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ScaleInThreshold describe the consecutive threshold for the auto-scaling,
-if the consecutive counts of the scale-in result in auto-scaling reach this number,
-the auto-scaling would be performed.
-If not set, the default value is 5.</p>
+<p>MetricsTimeDuration describes the Time duration to be queried in the Prometheus</p>
 </td>
 </tr>
 <tr>
@@ -2840,19 +2840,6 @@ to fetch the recommended replicas for TiKV/TiDB</p>
 </tr>
 </thead>
 <tbody>
-<tr>
-<td>
-<code>phase</code></br>
-<em>
-<a href="#autoscalerphase">
-AutoScalerPhase
-</a>
-</em>
-</td>
-<td>
-<p>Phase describes cluster auto scaling phase</p>
-</td>
-</tr>
 <tr>
 <td>
 <code>metrics</code></br>
@@ -2894,7 +2881,7 @@ int32
 <td>
 <code>lastAutoScalingTimestamp</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -2985,6 +2972,14 @@ Optional: Defaults to range</p>
 </tr>
 </tbody>
 </table>
+<h3 id="cleanpolicytype">CleanPolicyType</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#backupspec">BackupSpec</a>)
+</p>
+<p>
+<p>CleanPolicyType represents the clean policy of backup data in remote storage</p>
+</p>
 <h3 id="commonconfig">CommonConfig</h3>
 <p>
 (<em>Appears on:</em>
@@ -3107,7 +3102,7 @@ Optional: Defaults to cluster-level setting</p>
 <td>
 <code>imagePullPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#pullpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
 Kubernetes core/v1.PullPolicy
 </a>
 </em>
@@ -3122,7 +3117,7 @@ Optional: Defaults to cluster-level setting</p>
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -3149,7 +3144,7 @@ Optional: Defaults to cluster-level setting</p>
 <td>
 <code>affinity</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#affinity-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core">
 Kubernetes core/v1.Affinity
 </a>
 </em>
@@ -3216,7 +3211,7 @@ Optional: Defaults to cluster-level setting</p>
 <td>
 <code>tolerations</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#toleration-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
 []Kubernetes core/v1.Toleration
 </a>
 </em>
@@ -3231,7 +3226,7 @@ Optional: Defaults to cluster-level setting</p>
 <td>
 <code>podSecurityContext</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#podsecuritycontext-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podsecuritycontext-v1-core">
 Kubernetes core/v1.PodSecurityContext
 </a>
 </em>
@@ -3260,7 +3255,7 @@ Optional: Defaults to cluster-level setting</p>
 <td>
 <code>env</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#envvar-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#envvar-v1-core">
 []Kubernetes core/v1.EnvVar
 </a>
 </em>
@@ -3288,7 +3283,7 @@ tidb-operator built envs.
 <td>
 <code>additionalContainers</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#container-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#container-v1-core">
 []Kubernetes core/v1.Container
 </a>
 </em>
@@ -3302,7 +3297,7 @@ tidb-operator built envs.
 <td>
 <code>additionalVolumes</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#volume-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#volume-v1-core">
 []Kubernetes core/v1.Volume
 </a>
 </em>
@@ -3311,6 +3306,24 @@ tidb-operator built envs.
 <em>(Optional)</em>
 <p>Additional volumes of component pod. Currently this only
 supports additional volume mounts for sidecar containers.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>terminationGracePeriodSeconds</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional duration in seconds the pod needs to terminate gracefully. May be decreased in delete request.
+Value must be non-negative integer. The value zero indicates delete immediately.
+If this value is nil, the default grace period will be used instead.
+The grace period is the duration in seconds after the processes running in the pod are sent
+a termination signal and the time when the processes are forcibly halted with a kill signal.
+Set this value longer than the expected cleanup time for your process.
+Defaults to 30 seconds.</p>
 </td>
 </tr>
 </tbody>
@@ -3629,6 +3642,77 @@ CrdKind
 </tr>
 </tbody>
 </table>
+<h3 id="custommetric">CustomMetric</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#basicautoscalerspec">BasicAutoScalerSpec</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>MetricSpec</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#metricspec-v2beta2-autoscaling">
+Kubernetes autoscaling/v2beta2.MetricSpec
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>MetricSpec</code> are embedded into this type.)
+</p>
+<em>(Optional)</em>
+<p>metrics contains the specifications for which to use to calculate the
+desired replica count (the maximum replica count across all metrics will
+be used).  The desired replica count is calculated multiplying the
+ratio between the target value and the current value by the current
+number of pods.  Ergo, metrics used must decrease as the pod count is
+increased, and vice-versa.  See the individual metric source types for
+more information about how each type of metric must respond.
+If not set, the auto-scaling won&rsquo;t happen.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>leastStoragePressurePeriodSeconds</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LeastStoragePressurePeriodSeconds is only for the storage auto-scaling case when the resource name in the metricSpec
+is <code>Storage</code>. When the Storage metrics meet the pressure, Operator would wait
+LeastStoragePressurePeriodSeconds duration then able to scale out.
+If not set, the default value is <code>300</code></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>leastRemainAvailableStoragePercent</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>LeastRemainAvailableStoragePercent indicates the least remaining available storage percent compare to
+the capacity storage. If the available storage is lower than the capacity storage * LeastRemainAvailableStoragePercent,
+the storage status will become storage pressure and ready to be scaled out.
+LeastRemainAvailableStoragePercent should between 5 and 90. If not set, the default value would be 10</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="dashboardconfig">DashboardConfig</h3>
 <p>
 (<em>Appears on:</em>
@@ -3700,6 +3784,33 @@ bool
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>disable-telemetry</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>When not disabled, usage data will be sent to PingCAP for improving user experience.
+Optional: Defaults to false
+Deprecated in PD v4.0.3, use EnableTelemetry instead</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>enable-telemetry</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>When enabled, usage data will be sent to PingCAP for improving user experience.
+Optional: Defaults to true</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="discoveryspec">DiscoverySpec</h3>
@@ -3722,7 +3833,7 @@ bool
 <td>
 <code>ResourceRequirements</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -3731,6 +3842,46 @@ Kubernetes core/v1.ResourceRequirements
 <p>
 (Members of <code>ResourceRequirements</code> are embedded into this type.)
 </p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dumplingconfig">DumplingConfig</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#backupspec">BackupSpec</a>)
+</p>
+<p>
+<p>DumplingConfig contains config for dumpling</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>options</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>Options means options for backup data to remote storage with dumpling.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tableFilter</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>TableFilter means Table filter expression for &lsquo;db.table&rsquo; matching</p>
 </td>
 </tr>
 </tbody>
@@ -3762,7 +3913,8 @@ bool
 <td>
 <em>(Optional)</em>
 <p>Whether enable the syntax like <code>auto_random(3)</code> on the primary key column.
-imported from TiDB v3.1.0</p>
+Imported from TiDB v3.1.0.
+Deprecated in TiDB v4.0.3, please check detail in <a href="https://docs.pingcap.com/tidb/dev/release-4.0.3#improvements">https://docs.pingcap.com/tidb/dev/release-4.0.3#improvements</a>.</p>
 </td>
 </tr>
 <tr>
@@ -3816,6 +3968,17 @@ int32
 </td>
 <td>
 <p>Port indicates the external service&rsquo;s port</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>path</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Path indicates the external service&rsquo;s path</p>
 </td>
 </tr>
 <tr>
@@ -4062,6 +4225,18 @@ string
 </tr>
 <tr>
 <td>
+<code>path</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Path is the full path where the backup is saved.
+The format of the path must be: &ldquo;<bucket-name>/<path-to-backup-file>&rdquo;</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>bucket</code></br>
 <em>
 string
@@ -4228,6 +4403,38 @@ IngressSpec
 </tr>
 </tbody>
 </table>
+<h3 id="groupref">GroupRef</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tidbclusterstatus">TidbClusterStatus</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>Reference</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
+Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>Reference</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="helperspec">HelperSpec</h3>
 <p>
 (<em>Appears on:</em>
@@ -4261,7 +4468,7 @@ Optional: Defaults to busybox:1.26.2</p>
 <td>
 <code>imagePullPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#pullpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
 Kubernetes core/v1.PullPolicy
 </a>
 </em>
@@ -4318,7 +4525,7 @@ map[string]string
 <td>
 <code>tls</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#ingresstls-v1beta1-extensions">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#ingresstls-v1beta1-extensions">
 []Kubernetes extensions/v1beta1.IngressTLS
 </a>
 </em>
@@ -4691,7 +4898,7 @@ uint32
 <td>
 <code>ResourceRequirements</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -4733,6 +4940,17 @@ string
 Possible values: plaintext, aes128-ctr, aes192-ctr, aes256-ctr
 Optional: Default to plaintext
 optional</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>path</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Text file containing the key in hex form, end with &lsquo;\n&rsquo;</p>
 </td>
 </tr>
 </tbody>
@@ -4868,6 +5086,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>CurrentValue indicates the value calculated in the last auto-scaling reconciliation</p>
 </td>
 </tr>
@@ -4879,7 +5098,24 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>TargetValue indicates the threshold value for this metrics in auto-scaling</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>StorageMetricsStatus</code></br>
+<em>
+<a href="#storagemetricsstatus">
+StorageMetricsStatus
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>StorageMetricsStatus</code> are embedded into this type.)
+</p>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
@@ -4908,16 +5144,16 @@ string
 <tbody>
 <tr>
 <td>
-<code>Resources</code></br>
+<code>ResourceRequirements</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
 </td>
 <td>
 <p>
-(Members of <code>Resources</code> are embedded into this type.)
+(Members of <code>ResourceRequirements</code> are embedded into this type.)
 </p>
 </td>
 </tr>
@@ -4945,53 +5181,13 @@ string
 <td>
 <code>imagePullPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#pullpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
 Kubernetes core/v1.PullPolicy
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="mydumperconfig">MydumperConfig</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#backupspec">BackupSpec</a>)
-</p>
-<p>
-<p>MydumperConfig contains config for mydumper</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>options</code></br>
-<em>
-[]string
-</em>
-</td>
-<td>
-<p>Options means options for backup data to remote storage with mydumper.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>tableRegex</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>TableRegex means Regular expression for &lsquo;db.table&rsquo; matching</p>
 </td>
 </tr>
 </tbody>
@@ -5609,7 +5805,7 @@ bool
 <td>
 <code>createdAt</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -5810,7 +6006,7 @@ bool
 <td>
 <code>lastTransitionTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -6638,7 +6834,7 @@ ComponentSpec
 <td>
 <code>ResourceRequirements</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -6816,7 +7012,7 @@ MemberPhase
 <td>
 <code>statefulSet</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#statefulsetstatus-v1-apps">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#statefulsetstatus-v1-apps">
 Kubernetes apps/v1.StatefulSetStatus
 </a>
 </em>
@@ -7597,7 +7793,7 @@ ComponentSpec
 <td>
 <code>ResourceRequirements</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -7706,7 +7902,7 @@ MemberPhase
 <td>
 <code>statefulSet</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#statefulsetstatus-v1-apps">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#statefulsetstatus-v1-apps">
 Kubernetes apps/v1.StatefulSetStatus
 </a>
 </em>
@@ -7820,7 +8016,7 @@ RestoreConditionType
 <td>
 <code>status</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#conditionstatus-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#conditionstatus-v1-core">
 Kubernetes core/v1.ConditionStatus
 </a>
 </em>
@@ -7832,7 +8028,7 @@ Kubernetes core/v1.ConditionStatus
 <td>
 <code>lastTransitionTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -7890,7 +8086,7 @@ string
 <td>
 <code>resources</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -7994,7 +8190,7 @@ BRConfig
 <td>
 <code>tolerations</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#toleration-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
 []Kubernetes core/v1.Toleration
 </a>
 </em>
@@ -8008,7 +8204,7 @@ BRConfig
 <td>
 <code>affinity</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#affinity-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core">
 Kubernetes core/v1.Affinity
 </a>
 </em>
@@ -8044,7 +8240,7 @@ string
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -8076,7 +8272,7 @@ string
 <td>
 <code>timeStarted</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -8089,13 +8285,24 @@ Kubernetes meta/v1.Time
 <td>
 <code>timeCompleted</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
 </td>
 <td>
 <p>TimeCompleted is the time at which the restore was completed.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>commitTs</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>CommitTs is the snapshot time point of tidb cluster.</p>
 </td>
 </tr>
 <tr>
@@ -8150,6 +8357,18 @@ string
 </td>
 <td>
 <p>Region in which the S3 compatible bucket is located.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>path</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Path is the full path where the backup is saved.
+The format of the path must be: &ldquo;<bucket-name>/<path-to-backup-file>&rdquo;</p>
 </td>
 </tr>
 <tr>
@@ -8458,7 +8677,7 @@ string
 <td>
 <code>type</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#servicetype-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#servicetype-v1-core">
 Kubernetes core/v1.ServiceType
 </a>
 </em>
@@ -8712,7 +8931,7 @@ int
 <td>
 <code>resources</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -8734,6 +8953,86 @@ string
 <em>(Optional)</em>
 <p>Name of the StorageClass required by the claim.
 More info: <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1">https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1</a></p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="storagemetricsstatus">StorageMetricsStatus</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#metricsstatus">MetricsStatus</a>)
+</p>
+<p>
+<p>StorageMetricsStatus describe the storage metrics status in the last auto-scaling reconciliation</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>storagePressure</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StoragePressure indicates whether storage under pressure</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storagePressureStartTime</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StoragePressureStartTime indicates the timestamp of the StoragePressure fist become true from false or nil</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>availableStorage</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>capacityStorage</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>baselineAvailableStorage</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>BaselineAvailableStorage indicates the baseline for available storage size.
+This is calculated by the capacity storage size * storage auto-scaling baseline percent value
+If the AvailableStorage is less than the BaselineAvailableStorage, the database is under StoragePressure
+optional</p>
 </td>
 </tr>
 </tbody>
@@ -8970,7 +9269,7 @@ ComponentSpec
 <td>
 <code>ResourceRequirements</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -9073,7 +9372,7 @@ MemberPhase
 <td>
 <code>statefulSet</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#statefulsetstatus-v1-apps">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#statefulsetstatus-v1-apps">
 Kubernetes apps/v1.StatefulSetStatus
 </a>
 </em>
@@ -9676,8 +9975,8 @@ bool
 </em>
 </td>
 <td>
-<p>imported from v3.1.0
-optional</p>
+<em>(Optional)</em>
+<p>imported from v3.1.0</p>
 </td>
 </tr>
 <tr>
@@ -9688,8 +9987,24 @@ uint64
 </em>
 </td>
 <td>
-<p>imported from v3.1.0
-optional</p>
+<em>(Optional)</em>
+<p>imported from v3.1.0</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>enable-telemetry</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>When enabled, usage data (for example, instance versions) will be reported to PingCAP periodically for user experience analytics.
+If this config is set to <code>false</code> on all TiDB servers, telemetry will be always disabled regardless of the value of the global variable <code>tidb_enable_telemetry</code>.
+See PingCAP privacy policy for details: <a href="https://pingcap.com/en/privacy-policy/">https://pingcap.com/en/privacy-policy/</a>.
+Imported from v4.0.2.
+Optional: Defaults to true</p>
 </td>
 </tr>
 </tbody>
@@ -9724,7 +10039,7 @@ string
 <td>
 <code>createdAt</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -9851,7 +10166,7 @@ bool
 <td>
 <code>lastTransitionTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -9904,7 +10219,7 @@ ServiceSpec
 <td>
 <code>externalTrafficPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#serviceexternaltrafficpolicytype-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#serviceexternaltrafficpolicytype-v1-core">
 Kubernetes core/v1.ServiceExternalTrafficPolicyType
 </a>
 </em>
@@ -9926,6 +10241,32 @@ bool
 <em>(Optional)</em>
 <p>Whether expose the status port
 Optional: Defaults to true</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mysqlNodePort</code></br>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Expose the tidb cluster mysql port to MySQLNodePort
+Optional: Defaults to 0</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>statusNodePort</code></br>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Expose the tidb status node port to StatusNodePort
+Optional: Defaults to 0</p>
 </td>
 </tr>
 </tbody>
@@ -9950,7 +10291,7 @@ Optional: Defaults to true</p>
 <td>
 <code>ResourceRequirements</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -9977,7 +10318,7 @@ Deprecated, use TidbCluster.HelperImage instead</p>
 <td>
 <code>imagePullPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#pullpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
 Kubernetes core/v1.PullPolicy
 </a>
 </em>
@@ -10025,7 +10366,7 @@ ComponentSpec
 <td>
 <code>ResourceRequirements</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -10169,6 +10510,22 @@ TiDBConfig
 <p>Config is the Configuration of tidb-servers</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>lifecycle</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#lifecycle-v1-core">
+Kubernetes core/v1.Lifecycle
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Lifecycle describes actions that the management system should take in response to container lifecycle
+events. For the PostStart and PreStop lifecycle handlers, management of the container blocks
+until the action is complete, unless the container process fails, in which case the handler is aborted.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tidbstatus">TiDBStatus</h3>
@@ -10204,7 +10561,7 @@ MemberPhase
 <td>
 <code>statefulSet</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#statefulsetstatus-v1-apps">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#statefulsetstatus-v1-apps">
 Kubernetes apps/v1.StatefulSetStatus
 </a>
 </em>
@@ -10368,7 +10725,7 @@ ComponentSpec
 <td>
 <code>ResourceRequirements</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -10480,6 +10837,34 @@ LogTailerSpec
 <td>
 <em>(Optional)</em>
 <p>LogTailer is the configurations of the log tailers for TiFlash</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tikvbackupconfig">TiKVBackupConfig</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tikvconfig">TiKVConfig</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>num-threads</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
@@ -11417,6 +11802,19 @@ TiKVPessimisticTxn
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>backup</code></br>
+<em>
+<a href="#tikvbackupconfig">
+TiKVBackupConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tikvcoprocessorconfig">TiKVCoprocessorConfig</h3>
@@ -12102,7 +12500,7 @@ string
 <td>
 <code>createdAt</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -14241,7 +14639,7 @@ ComponentSpec
 <td>
 <code>ResourceRequirements</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -14405,7 +14803,7 @@ MemberPhase
 <td>
 <code>statefulSet</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#statefulsetstatus-v1-apps">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#statefulsetstatus-v1-apps">
 Kubernetes apps/v1.StatefulSetStatus
 </a>
 </em>
@@ -14750,7 +15148,7 @@ string
 <td>
 <code>lastHeartbeatTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -14762,7 +15160,7 @@ Kubernetes meta/v1.Time
 <td>
 <code>lastTransitionTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -15113,6 +15511,44 @@ BasicAutoScalerStatus
 </tr>
 </tbody>
 </table>
+<h3 id="tidbclusterautoscalerref">TidbClusterAutoScalerRef</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tidbclusterstatus">TidbClusterStatus</a>)
+</p>
+<p>
+<p>TidbClusterAutoScalerRef indicates to the target auto-scaler ref</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>namespace</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="tidbclusterautoscalerspec">TidbClusterAutoScalerSpec</h3>
 <p>
 (<em>Appears on:</em>
@@ -15279,7 +15715,7 @@ TidbClusterConditionType
 <td>
 <code>status</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#conditionstatus-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#conditionstatus-v1-core">
 Kubernetes core/v1.ConditionStatus
 </a>
 </em>
@@ -15292,7 +15728,7 @@ Kubernetes core/v1.ConditionStatus
 <td>
 <code>lastUpdateTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -15305,7 +15741,7 @@ Kubernetes meta/v1.Time
 <td>
 <code>lastTransitionTime</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>
@@ -15432,6 +15868,7 @@ PDSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>PD cluster spec</p>
 </td>
 </tr>
@@ -15445,6 +15882,7 @@ TiDBSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>TiDB cluster spec</p>
 </td>
 </tr>
@@ -15458,6 +15896,7 @@ TiKVSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>TiKV cluster spec</p>
 </td>
 </tr>
@@ -15558,7 +15997,7 @@ string
 <td>
 <code>pvReclaimPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#persistentvolumereclaimpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#persistentvolumereclaimpolicy-v1-core">
 Kubernetes core/v1.PersistentVolumeReclaimPolicy
 </a>
 </em>
@@ -15571,7 +16010,7 @@ Kubernetes core/v1.PersistentVolumeReclaimPolicy
 <td>
 <code>imagePullPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#pullpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
 Kubernetes core/v1.PullPolicy
 </a>
 </em>
@@ -15584,7 +16023,7 @@ Kubernetes core/v1.PullPolicy
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -15656,7 +16095,7 @@ Optional: Defaults to false</p>
 <td>
 <code>affinity</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#affinity-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core">
 Kubernetes core/v1.Affinity
 </a>
 </em>
@@ -15707,7 +16146,7 @@ map[string]string
 <td>
 <code>tolerations</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#toleration-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
 []Kubernetes core/v1.Toleration
 </a>
 </em>
@@ -15870,6 +16309,18 @@ TidbMonitorRef
 </tr>
 <tr>
 <td>
+<code>auto-scaler,omitempyt</code></br>
+<em>
+<a href="#tidbclusterautoscalerref">
+TidbClusterAutoScalerRef
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
 <code>conditions</code></br>
 <em>
 <a href="#tidbclustercondition">
@@ -15880,6 +16331,32 @@ TidbMonitorRef
 <td>
 <em>(Optional)</em>
 <p>Represents the latest available observations of a tidb cluster&rsquo;s state.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tikv-groups</code></br>
+<em>
+<a href="#groupref">
+[]GroupRef
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>tidb-groups</code></br>
+<em>
+<a href="#groupref">
+[]GroupRef
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
@@ -15926,7 +16403,7 @@ TidbClusterRef
 <td>
 <code>imagePullPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#pullpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
 Kubernetes core/v1.PullPolicy
 </a>
 </em>
@@ -15939,7 +16416,7 @@ Kubernetes core/v1.PullPolicy
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -16000,7 +16477,7 @@ string
 <td>
 <code>resources</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#resourcerequirements-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
 Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
@@ -16055,7 +16532,7 @@ Optional: Defaults to nil</p>
 <td>
 <code>JobStatus</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#jobstatus-v1-batch">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#jobstatus-v1-batch">
 Kubernetes batch/v1.JobStatus
 </a>
 </em>
@@ -16217,7 +16694,7 @@ InitializerSpec
 <td>
 <code>pvReclaimPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#persistentvolumereclaimpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#persistentvolumereclaimpolicy-v1-core">
 Kubernetes core/v1.PersistentVolumeReclaimPolicy
 </a>
 </em>
@@ -16230,7 +16707,7 @@ Kubernetes core/v1.PersistentVolumeReclaimPolicy
 <td>
 <code>imagePullPolicy</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#pullpolicy-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
 Kubernetes core/v1.PullPolicy
 </a>
 </em>
@@ -16242,7 +16719,7 @@ Kubernetes core/v1.PullPolicy
 <td>
 <code>imagePullSecrets</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#localobjectreference-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
 []Kubernetes core/v1.LocalObjectReference
 </a>
 </em>
@@ -16311,7 +16788,7 @@ map[string]string
 <td>
 <code>tolerations</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#toleration-v1-core">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
 []Kubernetes core/v1.Toleration
 </a>
 </em>
@@ -16359,6 +16836,19 @@ string
 default to current tidb cluster version, for example: v3.0.15</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>additionalContainers</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#container-v1-core">
+[]Kubernetes core/v1.Container
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tidbmonitorstatus">TidbMonitorStatus</h3>
@@ -16398,20 +16888,6 @@ BasicAutoScalerSpec
 <p>
 (Members of <code>BasicAutoScalerSpec</code> are embedded into this type.)
 </p>
-</td>
-</tr>
-<tr>
-<td>
-<code>readyToScaleThresholdSeconds</code></br>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ReadyToScaleThresholdSeconds represents duration that the ReadyToScale phase
-should last for before auto scaling.
-If not set, the default ReadyToScaleThresholdSeconds will be set to 30.</p>
 </td>
 </tr>
 </tbody>
@@ -16529,7 +17005,7 @@ k8s.io/apimachinery/pkg/types.UID
 <td>
 <code>createdAt</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.13/#time-v1-meta">
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
 Kubernetes meta/v1.Time
 </a>
 </em>

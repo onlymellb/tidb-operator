@@ -136,6 +136,16 @@ type DashboardConfig struct {
 	PublicPathPrefix *string `toml:"public-path-prefix,omitempty" json:"public-path-prefix,omitempty"`
 	// +optional
 	InternalProxy *bool `toml:"internal-proxy,omitempty" json:"internal-proxy,omitempty"`
+	// When not disabled, usage data will be sent to PingCAP for improving user experience.
+	// Optional: Defaults to false
+	// +optional
+	//+k8s:openapi-gen=false
+	// Deprecated in PD v4.0.3, use EnableTelemetry instead
+	DisableTelemetry *bool `toml:"disable-telemetry,omitempty" json:"disable-telemetry,omitempty"`
+	// When enabled, usage data will be sent to PingCAP for improving user experience.
+	// Optional: Defaults to true
+	// +optional
+	EnableTelemetry *bool `toml:"enable-telemetry,omitempty" json:"enable-telemetry,omitempty" default:"true"`
 }
 
 // PDLogConfig serializes log related config in toml/json.

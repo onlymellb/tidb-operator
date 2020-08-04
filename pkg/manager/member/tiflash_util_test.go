@@ -65,7 +65,7 @@ var (
 			},
 			MarkCacheSize:        pointer.Int64Ptr(5368709120),
 			MinmaxIndexCacheSize: pointer.Int64Ptr(5368709120),
-			Path:                 pointer.StringPtr("/data0/db"),
+			FlashDataPath:        pointer.StringPtr("/data0/db"),
 			PathRealtimeMode:     pointer.BoolPtr(false),
 			FlashProfile: &v1alpha1.FlashProfile{
 				Default: &v1alpha1.Profile{
@@ -163,7 +163,7 @@ var (
 			},
 			MarkCacheSize:        pointer.Int64Ptr(5368709121),
 			MinmaxIndexCacheSize: pointer.Int64Ptr(5368709121),
-			Path:                 pointer.StringPtr("/data1/db"),
+			FlashDataPath:        pointer.StringPtr("/data1/db"),
 			PathRealtimeMode:     pointer.BoolPtr(true),
 			FlashProfile: &v1alpha1.FlashProfile{
 				Default: &v1alpha1.Profile{
@@ -462,23 +462,24 @@ func newTidbCluster() *v1alpha1.TidbCluster {
 			UID:       types.UID("test"),
 		},
 		Spec: v1alpha1.TidbClusterSpec{
-			PD: v1alpha1.PDSpec{
+			PD: &v1alpha1.PDSpec{
 				ComponentSpec: v1alpha1.ComponentSpec{
 					Image: "pd-test-image",
 				},
 			},
-			TiKV: v1alpha1.TiKVSpec{
+			TiKV: &v1alpha1.TiKVSpec{
 				ComponentSpec: v1alpha1.ComponentSpec{
 					Image: "tikv-test-image",
 				},
 			},
-			TiDB: v1alpha1.TiDBSpec{
+			TiDB: &v1alpha1.TiDBSpec{
 				ComponentSpec: v1alpha1.ComponentSpec{
 					Image: "tidb-test-image",
 				},
 			},
 			TiFlash: &v1alpha1.TiFlashSpec{},
 		},
+		Status: v1alpha1.TidbClusterStatus{},
 	}
 }
 

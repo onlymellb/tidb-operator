@@ -15,6 +15,7 @@ package member
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
@@ -32,6 +33,12 @@ import (
 	appslisters "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
+)
+
+const (
+	ticdcCertPath        = "/var/lib/ticdc-tls"
+	ticdcCertVolumeMount = "ticdc-tls"
 )
 
 // ticdcMemberManager implements manager.Manager.
@@ -101,7 +108,7 @@ func (tcmm *ticdcMemberManager) syncStatefulSet(tc *v1alpha1.TidbCluster) error 
 
 	oldStsTmp, err := tcmm.stsLister.StatefulSets(ns).Get(controller.TiCDCMemberName(tcName))
 	if err != nil && !errors.IsNotFound(err) {
-		return err
+		return fmt.Errorf("syncStatefulSet: failed to get sts %s for cluster %s/%s, error: %s", controller.TiCDCMemberName(tcName), ns, tcName, err)
 	}
 
 	stsNotExist := errors.IsNotFound(err)
@@ -187,7 +194,7 @@ func (tcmm *ticdcMemberManager) syncCDCHeadlessService(tc *v1alpha1.TidbCluster)
 		return tcmm.svcControl.CreateService(tc, newSvc)
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("syncCDCHeadlessService: failed to get svc %s for cluster %s/%s, error: %s", controller.TiCDCPeerMemberName(tcName), ns, tcName, err)
 	}
 
 	oldSvc := oldSvcTmp.DeepCopy()
@@ -253,10 +260,19 @@ func getNewTiCDCStatefulSet(tc *v1alpha1.TidbCluster) (*apps.StatefulSet, error)
 	headlessSvcName := controller.TiCDCPeerMemberName(tcName)
 
 	cmdArgs := []string{"/cdc server", "--addr=0.0.0.0:8301", "--advertise-addr=${POD_NAME}.${HEADLESS_SERVICE_NAME}.${NAMESPACE}.svc:8301"}
-	cmdArgs = append(cmdArgs, fmt.Sprintf("--pd=http://%s-pd:2379", tcName))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--gc-ttl=%d", tc.TiCDCGCTTL()))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--log-file=%s", tc.TiCDCLogFile()))
 	cmdArgs = append(cmdArgs, fmt.Sprintf("--log-level=%s", tc.TiCDCLogLevel()))
+
+	if tc.IsTLSClusterEnabled() {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--ca=%s", path.Join(ticdcCertPath, corev1.ServiceAccountRootCAKey)))
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--cert=%s", path.Join(ticdcCertPath, corev1.TLSCertKey)))
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--key=%s", path.Join(ticdcCertPath, corev1.TLSPrivateKeyKey)))
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--pd=https://%s-pd:2379", tcName))
+	} else {
+		cmdArgs = append(cmdArgs, fmt.Sprintf("--pd=http://%s-pd:2379", tcName))
+	}
+
 	cmd := strings.Join(cmdArgs, " ")
 
 	envs := []corev1.EnvVar{
@@ -301,9 +317,44 @@ func getNewTiCDCStatefulSet(tc *v1alpha1.TidbCluster) (*apps.StatefulSet, error)
 		Resources: controller.ContainerResource(tc.Spec.TiCDC.ResourceRequirements),
 		Env:       util.AppendEnv(envs, baseTiCDCSpec.Env()),
 	}
+
+	if tc.IsTLSClusterEnabled() {
+		ticdcContainer.VolumeMounts = []corev1.VolumeMount{
+			{
+				Name:      ticdcCertVolumeMount,
+				ReadOnly:  true,
+				MountPath: ticdcCertPath,
+			},
+			{
+				Name:      util.ClusterClientVolName,
+				ReadOnly:  true,
+				MountPath: util.ClusterClientTLSPath,
+			},
+		}
+	}
+
 	podSpec := baseTiCDCSpec.BuildPodSpec()
 	podSpec.Containers = []corev1.Container{ticdcContainer}
 	podSpec.ServiceAccountName = tc.Spec.TiCDC.ServiceAccount
+
+	if tc.IsTLSClusterEnabled() {
+		podSpec.Volumes = []corev1.Volume{
+			{
+				Name: ticdcCertVolumeMount, VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: util.ClusterTLSSecretName(tc.Name, label.TiCDCLabelVal),
+					},
+				},
+			},
+			{
+				Name: util.ClusterClientVolName, VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: util.ClusterClientTLSSecretName(tc.Name),
+					},
+				},
+			},
+		}
+	}
 
 	ticdcSts := &apps.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -314,7 +365,7 @@ func getNewTiCDCStatefulSet(tc *v1alpha1.TidbCluster) (*apps.StatefulSet, error)
 			OwnerReferences: []metav1.OwnerReference{controller.GetOwnerRef(tc)},
 		},
 		Spec: apps.StatefulSetSpec{
-			Replicas: controller.Int32Ptr(tc.TiCDCDeployDesiredReplicas()),
+			Replicas: pointer.Int32Ptr(tc.TiCDCDeployDesiredReplicas()),
 			Selector: ticdcLabel.LabelSelector(),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -349,7 +400,7 @@ func ticdcStatefulSetIsUpgrading(podLister corelisters.PodLister, pdControl pdap
 	}
 	ticdcPods, err := podLister.Pods(tc.GetNamespace()).List(selector)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ticdcStatefulSetIsUpgrading: failed to list pods for cluster %s/%s, selector %s, error: %s", tc.GetNamespace(), tc.GetName(), selector, err)
 	}
 	for _, pod := range ticdcPods {
 		revisionHash, exist := pod.Labels[apps.ControllerRevisionHashLabelKey]

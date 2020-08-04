@@ -33,6 +33,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	batchlisters "k8s.io/client-go/listers/batch/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
+	"k8s.io/utils/pointer"
 )
 
 type restoreManager struct {
@@ -206,7 +207,7 @@ func (rm *restoreManager) makeImportJob(restore *v1alpha1.Restore) (*batchv1.Job
 					VolumeMounts: []corev1.VolumeMount{
 						{Name: label.RestoreJobLabelVal, MountPath: constants.BackupRootPath},
 					},
-					Env:       envVars,
+					Env:       util.AppendEnvIfPresent(envVars, "TZ"),
 					Resources: restore.Spec.ResourceRequirements,
 				},
 			},
@@ -240,7 +241,7 @@ func (rm *restoreManager) makeImportJob(restore *v1alpha1.Restore) (*batchv1.Job
 			},
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: controller.Int32Ptr(0),
+			BackoffLimit: pointer.Int32Ptr(0),
 			Template:     *podSpec,
 		},
 	}
@@ -291,12 +292,12 @@ func (rm *restoreManager) makeRestoreJob(restore *v1alpha1.Restore) (*batchv1.Jo
 	if tc.Spec.TLSCluster != nil && tc.Spec.TLSCluster.Enabled {
 		args = append(args, "--cluster-tls=true")
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "cluster-client-tls",
+			Name:      util.ClusterClientVolName,
 			ReadOnly:  true,
 			MountPath: util.ClusterClientTLSPath,
 		})
 		volumes = append(volumes, corev1.Volume{
-			Name: "cluster-client-tls",
+			Name: util.ClusterClientVolName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: util.ClusterClientTLSSecretName(restore.Spec.BR.Cluster),
@@ -345,7 +346,7 @@ func (rm *restoreManager) makeRestoreJob(restore *v1alpha1.Restore) (*batchv1.Jo
 					Args:            args,
 					ImagePullPolicy: corev1.PullIfNotPresent,
 					VolumeMounts:    volumeMounts,
-					Env:             envVars,
+					Env:             util.AppendEnvIfPresent(envVars, "TZ"),
 					Resources:       restore.Spec.ResourceRequirements,
 				},
 			},
@@ -368,7 +369,7 @@ func (rm *restoreManager) makeRestoreJob(restore *v1alpha1.Restore) (*batchv1.Jo
 			},
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: controller.Int32Ptr(0),
+			BackoffLimit: pointer.Int32Ptr(0),
 			Template:     *podSpec,
 		},
 	}
@@ -390,7 +391,7 @@ func (rm *restoreManager) ensureRestorePVCExist(restore *v1alpha1.Restore) (stri
 	}
 
 	restorePVCName := restore.GetRestorePVCName()
-	_, err = rm.pvcLister.PersistentVolumeClaims(ns).Get(restorePVCName)
+	pvc, err := rm.pvcLister.PersistentVolumeClaims(ns).Get(restorePVCName)
 	if err != nil {
 		// get the object from the local cache, the error can only be IsNotFound,
 		// so we need to create PVC for restore job
@@ -416,6 +417,8 @@ func (rm *restoreManager) ensureRestorePVCExist(restore *v1alpha1.Restore) (stri
 			errMsg := fmt.Errorf(" %s/%s create restore pvc %s failed, err: %v", ns, name, pvc.GetName(), err)
 			return "CreatePVCFailed", errMsg
 		}
+	} else if pvcRs := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; pvcRs.Cmp(rs) == -1 {
+		return "PVCStorageSizeTooSmall", fmt.Errorf("%s/%s's restore pvc %s's storage size %s is less than expected storage size %s, please delete old pvc to continue", ns, name, pvc.GetName(), pvcRs.String(), rs.String())
 	}
 	return "", nil
 }

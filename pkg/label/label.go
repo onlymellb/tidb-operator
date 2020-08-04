@@ -30,7 +30,6 @@ const (
 	// ComponentLabelKey is Kubernetes recommended label key, it represents the component within the architecture
 	ComponentLabelKey string = "app.kubernetes.io/component"
 	// NameLabelKey is Kubernetes recommended label key, it represents the name of the application
-	// It should always be tidb-cluster in our case.
 	NameLabelKey string = "app.kubernetes.io/name"
 	// InstanceLabelKey is Kubernetes recommended label key, it represents a unique name identifying the instance of an application
 	// It's set by helm when installing a release
@@ -110,25 +109,9 @@ const (
 	AnnTiDBLastAutoScalingTimestamp = "tidb.tidb.pingcap.com/last-autoscaling-timestamp"
 	// AnnTiKVLastAutoScalingTimestamp is annotation key of tidbclusterto which ordinal is created by tikv auto-scaling
 	AnnTiKVLastAutoScalingTimestamp = "tikv.tidb.pingcap.com/last-autoscaling-timestamp"
-
-	// AnnTiKVReadyToScaleTimestamp records timestamp when tikv ready to scale
-	AnnTiKVReadyToScaleTimestamp = "tikv.tidb.pingcap.com/ready-to-scale-timestamp"
-
 	// AnnLastSyncingTimestamp records last sync timestamp
 	AnnLastSyncingTimestamp = "tidb.pingcap.com/last-syncing-timestamp"
 
-	// AnnTiDBConsecutiveScaleOutCount describes the least consecutive count to scale-out for tidb
-	AnnTiDBConsecutiveScaleOutCount = "tidb.tidb.pingcap.com/consecutive-scale-out-count"
-	// AnnTiDBConsecutiveScaleInCount describes the least consecutive count to scale-in for tidb
-	AnnTiDBConsecutiveScaleInCount = "tidb.tidb.pingcap.com/consecutive-scale-in-count"
-	// AnnTiKVConsecutiveScaleOutCount describes the least consecutive count to scale-out for tikv
-	AnnTiKVConsecutiveScaleOutCount = "tikv.tidb.pingcap.com/consecutive-scale-out-count"
-	// AnnTiKVConsecutiveScaleInCount describes the least consecutive count to scale-in for tikv
-	AnnTiKVConsecutiveScaleInCount = "tikv.tidb.pingcap.com/consecutive-scale-in-count"
-	// AnnAutoScalingTargetName describes the target TidbCluster Ref Name for the TidbCluserAutoScaler
-	AnnAutoScalingTargetName = "auto-scaling.tidb.pingcap.com/target-name"
-	// AnnAutoScalingTargetNamespace describes the target TidbCluster Ref Namespace for the TidbCluserAutoScaler
-	AnnAutoScalingTargetNamespace = "auto-scaling.tidb.pingcap.com/target-namespace"
 	// AnnTiKVAutoScalingOutOrdinals describe the tikv pods' ordinal list which is created by auto-scaling out
 	AnnTiKVAutoScalingOutOrdinals = "tikv.tidb.pingcap.com/scale-out-ordinals"
 	// AnnTiDBAutoScalingOutOrdinals describe the tidb pods' ordinal list which is created by auto-scaling out
@@ -170,6 +153,12 @@ const (
 
 // Label is the label field in metadata
 type Label map[string]string
+
+func NewOperatorManaged() Label {
+	return Label{
+		ManagedByLabelKey: TiDBOperator,
+	}
+}
 
 // New initialize a new Label for components of tidb cluster
 func New() Label {
@@ -215,6 +204,13 @@ func NewMonitor() Label {
 	return Label{
 		// NameLabelKey is used to be compatible with helm monitor
 		NameLabelKey:      "tidb-cluster",
+		ManagedByLabelKey: TiDBOperator,
+	}
+}
+
+func NewGroup() Label {
+	return Label{
+		NameLabelKey:      "tidb-cluster-group",
 		ManagedByLabelKey: TiDBOperator,
 	}
 }
@@ -420,4 +416,12 @@ func (l Label) String() string {
 // IsManagedByTiDBOperator returns whether label is a Managed by tidb-operator
 func (l Label) IsManagedByTiDBOperator() bool {
 	return l[ManagedByLabelKey] == TiDBOperator
+}
+
+func (l Label) IsTidbClusterPod() bool {
+	return l[NameLabelKey] == "tidb-cluster"
+}
+
+func (l Label) IsGroupPod() bool {
+	return l[NameLabelKey] == "tidb-cluster-group"
 }

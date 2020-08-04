@@ -40,7 +40,6 @@ webhooks:
     objectSelector:
       matchLabels:
         "app.kubernetes.io/managed-by": "tidb-operator"
-        "app.kubernetes.io/name": "tidb-cluster"
     {{- end }}
     failurePolicy: {{ .Values.admissionWebhook.failurePolicy.validation | default "Fail" }}
     clientConfig:
@@ -77,7 +76,6 @@ webhooks:
     objectSelector:
       matchLabels:
         "app.kubernetes.io/managed-by": "tidb-operator"
-        "app.kubernetes.io/name": "tidb-cluster"
     {{- end }}
     failurePolicy: {{ .Values.admissionWebhook.failurePolicy.validation | default "Ignore" }}
     clientConfig:
@@ -119,7 +117,7 @@ webhooks:
       service:
         name: kubernetes
         namespace: default
-        path: "/apis/admission.tidb.pingcap.com/v1alpha1/admissionreviews"
+        path: "/apis/admission.tidb.pingcap.com/v1alpha1/pingcapresourcevalidations"
       {{- if .Values.admissionWebhook.cabundle }}
       caBundle: {{ .Values.admissionWebhook.cabundle }}
       {{- else }}
@@ -150,7 +148,7 @@ webhooks:
       service:
         name: kubernetes
         namespace: default
-        path: "/apis/admission.tidb.pingcap.com/v1alpha1/mutatingreviews"
+        path: "/apis/admission.tidb.pingcap.com/v1alpha1/pingcapresourcemutations"
       {{- if .Values.admissionWebhook.cabundle }}
       caBundle: {{ .Values.admissionWebhook.cabundle }}
       {{- else }}

@@ -16,6 +16,7 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -33,6 +34,7 @@ import (
 var (
 	ClusterClientTLSPath = "/var/lib/cluster-client-tls"
 	TiDBClientTLSPath    = "/var/lib/tidb-client-tls"
+	ClusterClientVolName = "cluster-client-tls"
 )
 
 func GetOrdinalFromPodName(podName string) (int32, error) {
@@ -239,6 +241,9 @@ func RetainManagedFields(desiredSvc, existedSvc *corev1.Service) {
 	}
 	// Retain NodePorts
 	for id, dport := range desiredSvc.Spec.Ports {
+		if dport.NodePort != 0 {
+			continue
+		}
 		for _, eport := range existedSvc.Spec.Ports {
 			if dport.Port == eport.Port && dport.Protocol == eport.Protocol {
 				dport.NodePort = eport.NodePort
@@ -247,4 +252,20 @@ func RetainManagedFields(desiredSvc, existedSvc *corev1.Service) {
 			}
 		}
 	}
+}
+
+// AppendEnvIfPresent appends the given environment if present
+func AppendEnvIfPresent(envs []corev1.EnvVar, name string) []corev1.EnvVar {
+	for _, e := range envs {
+		if e.Name == name {
+			return envs
+		}
+	}
+	if val, ok := os.LookupEnv(name); ok {
+		envs = append(envs, corev1.EnvVar{
+			Name:  name,
+			Value: val,
+		})
+	}
+	return envs
 }

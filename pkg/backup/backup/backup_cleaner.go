@@ -21,12 +21,14 @@ import (
 	backuputil "github.com/pingcap/tidb-operator/pkg/backup/util"
 	"github.com/pingcap/tidb-operator/pkg/controller"
 	"github.com/pingcap/tidb-operator/pkg/label"
+	"github.com/pingcap/tidb-operator/pkg/util"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	batchlisters "k8s.io/client-go/listers/batch/v1"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
 )
 
 // BackupCleaner implements the logic for cleaning backup
@@ -56,8 +58,8 @@ func NewBackupCleaner(
 }
 
 func (bc *backupCleaner) Clean(backup *v1alpha1.Backup) error {
-	if backup.DeletionTimestamp == nil {
-		// The backup object has not been deleted，do nothing
+	if backup.DeletionTimestamp == nil || !v1alpha1.IsCleanCandidate(backup) || v1alpha1.NeedNotClean(backup) {
+		// The backup object has not been deleted or we need to retain backup data，do nothing
 		return nil
 	}
 	ns := backup.GetNamespace()
@@ -79,6 +81,7 @@ func (bc *backupCleaner) Clean(backup *v1alpha1.Backup) error {
 			Status: corev1.ConditionTrue,
 		})
 	}
+
 	// not found clean job, create it
 	job, reason, err := bc.makeCleanJob(backup)
 	if err != nil {
@@ -141,7 +144,7 @@ func (bc *backupCleaner) makeCleanJob(backup *v1alpha1.Backup) (*batchv1.Job, st
 					Image:           controller.TidbBackupManagerImage,
 					Args:            args,
 					ImagePullPolicy: corev1.PullIfNotPresent,
-					Env:             storageEnv,
+					Env:             util.AppendEnvIfPresent(storageEnv, "TZ"),
 					Resources:       backup.Spec.ResourceRequirements,
 				},
 			},
@@ -163,7 +166,7 @@ func (bc *backupCleaner) makeCleanJob(backup *v1alpha1.Backup) (*batchv1.Job, st
 			},
 		},
 		Spec: batchv1.JobSpec{
-			BackoffLimit: controller.Int32Ptr(constants.DefaultBackoffLimit),
+			BackoffLimit: pointer.Int32Ptr(constants.DefaultBackoffLimit),
 			Template:     *podSpec,
 		},
 	}

@@ -31,6 +31,7 @@ import (
 	"github.com/pingcap/tidb-operator/pkg/controller"
 	"github.com/pingcap/tidb-operator/pkg/label"
 	"github.com/pingcap/tidb-operator/pkg/util"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -98,7 +99,7 @@ func (tm *tidbInitManager) updateStatus(ti *v1alpha1.TidbInitializer) error {
 	ns := ti.Namespace
 	job, err := tm.jobLister.Jobs(ns).Get(name)
 	if err != nil {
-		return err
+		return fmt.Errorf("updateStatus: failed to get job %s for TidbInitializer %s/%s, error: %s", name, ns, ti.Name, err)
 	}
 
 	phase := v1alpha1.InitializePhaseRunning
@@ -153,7 +154,7 @@ func (tm *tidbInitManager) syncTiDBInitConfigMap(ti *v1alpha1.TidbInitializer) e
 
 	tc, err := tm.tcLister.TidbClusters(ns).Get(tcName)
 	if err != nil {
-		return err
+		return fmt.Errorf("syncTiDBInitConfigMap: failed to get tidbcluster %s for TidbInitializer %s/%s, error: %s", tcName, ns, ti.Name, err)
 	}
 
 	newCm, err := getTiDBInitConfigMap(ti, tc.Spec.TiDB.IsTLSClientEnabled())
@@ -202,7 +203,7 @@ func (tm *tidbInitManager) makeTiDBInitJob(ti *v1alpha1.TidbInitializer) (*batch
 
 	tc, err := tm.tcLister.TidbClusters(ns).Get(tcName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("makeTiDBInitJob: failed to get tidbcluster %s for TidbInitializer %s/%s, error: %s", tcName, ns, ti.Name, err)
 	}
 
 	var envs []corev1.EnvVar
@@ -368,7 +369,7 @@ func (tm *tidbInitManager) makeTiDBInitJob(ti *v1alpha1.TidbInitializer) (*batch
 	job := &batchv1.Job{
 		ObjectMeta: meta,
 		Spec: batchv1.JobSpec{
-			BackoffLimit: controller.Int32Ptr(0),
+			BackoffLimit: pointer.Int32Ptr(0),
 			Template:     *podSpec,
 		},
 	}

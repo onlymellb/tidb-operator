@@ -134,11 +134,18 @@ type TiDBConfig struct {
 	// +optional
 	EnableDynamicConfig *bool `toml:"enable-dynamic-config,omitempty" json:"enable-dynamic-config,omitempty"`
 	// imported from v3.1.0
-	// optional
+	// +optional
 	EnableTableLock *bool `toml:"enable-table-lock,omitempty" json:"enable-table-lock,omitempty"`
 	// imported from v3.1.0
-	// optional
+	// +optional
 	DelayCleanTableLock *uint64 `toml:"delay-clean-table-lock,omitempty" json:"delay-clean-table-lock,omitempty"`
+	// When enabled, usage data (for example, instance versions) will be reported to PingCAP periodically for user experience analytics.
+	// If this config is set to `false` on all TiDB servers, telemetry will be always disabled regardless of the value of the global variable `tidb_enable_telemetry`.
+	// See PingCAP privacy policy for details: https://pingcap.com/en/privacy-policy/.
+	// Imported from v4.0.2.
+	// Optional: Defaults to true
+	// +optional
+	EnableTelemetry *bool `toml:"enable-telemetry,omitempty" json:"enable-telemetry,omitempty"`
 }
 
 // Log is the log section of config.
@@ -523,7 +530,8 @@ type IsolationRead struct {
 // +k8s:openapi-gen=true
 type Experimental struct {
 	// Whether enable the syntax like `auto_random(3)` on the primary key column.
-	// imported from TiDB v3.1.0
+	// Imported from TiDB v3.1.0.
+	// Deprecated in TiDB v4.0.3, please check detail in https://docs.pingcap.com/tidb/dev/release-4.0.3#improvements.
 	// +optional
 	AllowAutoRandom *bool `toml:"allow-auto-random,omitempty" json:"allow-auto-random,omitempty"`
 	// Whether enable creating expression index.

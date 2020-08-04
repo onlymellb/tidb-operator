@@ -82,12 +82,11 @@ func (tac *Controller) Run(workers int, stopCh <-chan struct{}) {
 }
 
 func (tac *Controller) worker() {
-	for tac.processNestWorkItem() {
-		// revive:disable:empty-block
+	for tac.processNextWorkItem() {
 	}
 }
 
-func (tac *Controller) processNestWorkItem() bool {
+func (tac *Controller) processNextWorkItem() bool {
 	key, quit := tac.queue.Get()
 	if quit {
 		return false

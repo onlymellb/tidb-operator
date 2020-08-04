@@ -113,13 +113,16 @@ type TidbClusterSpec struct {
 	Discovery DiscoverySpec `json:"discovery,omitempty"`
 
 	// PD cluster spec
-	PD PDSpec `json:"pd"`
+	// +optional
+	PD *PDSpec `json:"pd,omitempty"`
 
 	// TiDB cluster spec
-	TiDB TiDBSpec `json:"tidb"`
+	// +optional
+	TiDB *TiDBSpec `json:"tidb,omitempty"`
 
 	// TiKV cluster spec
-	TiKV TiKVSpec `json:"tikv"`
+	// +optional
+	TiKV *TiKVSpec `json:"tikv,omitempty"`
 
 	// TiFlash cluster spec
 	// +optional
@@ -225,17 +228,26 @@ type TidbClusterSpec struct {
 
 // TidbClusterStatus represents the current status of a tidb cluster.
 type TidbClusterStatus struct {
-	ClusterID string          `json:"clusterID,omitempty"`
-	PD        PDStatus        `json:"pd,omitempty"`
-	TiKV      TiKVStatus      `json:"tikv,omitempty"`
-	TiDB      TiDBStatus      `json:"tidb,omitempty"`
-	Pump      PumpStatus      `josn:"pump,omitempty"`
-	TiFlash   TiFlashStatus   `json:"tiflash,omitempty"`
-	TiCDC     TiCDCStatus     `json:"ticdc,omitempty"`
-	Monitor   *TidbMonitorRef `json:"monitor,omitempty"`
+	ClusterID  string                    `json:"clusterID,omitempty"`
+	PD         PDStatus                  `json:"pd,omitempty"`
+	TiKV       TiKVStatus                `json:"tikv,omitempty"`
+	TiDB       TiDBStatus                `json:"tidb,omitempty"`
+	Pump       PumpStatus                `josn:"pump,omitempty"`
+	TiFlash    TiFlashStatus             `json:"tiflash,omitempty"`
+	TiCDC      TiCDCStatus               `json:"ticdc,omitempty"`
+	Monitor    *TidbMonitorRef           `json:"monitor,omitempty"`
+	AutoScaler *TidbClusterAutoScalerRef `json:"auto-scaler,omitempyt"`
 	// Represents the latest available observations of a tidb cluster's state.
 	// +optional
 	Conditions []TidbClusterCondition `json:"conditions,omitempty"`
+	// +optional
+	TiKVGroups []GroupRef `json:"tikv-groups,omitempty"`
+	// +optional
+	TiDBGroups []GroupRef `json:"tidb-groups,omitempty"`
+}
+
+type GroupRef struct {
+	Reference corev1.LocalObjectReference `json:",inline"`
 }
 
 // TidbClusterCondition describes the state of a tidb cluster at a certain point.
@@ -548,6 +560,12 @@ type TiDBSpec struct {
 	// Config is the Configuration of tidb-servers
 	// +optional
 	Config *TiDBConfig `json:"config,omitempty"`
+
+	// Lifecycle describes actions that the management system should take in response to container lifecycle
+	// events. For the PostStart and PreStop lifecycle handlers, management of the container blocks
+	// until the action is complete, unless the container process fails, in which case the handler is aborted.
+	// +optional
+	Lifecycle *corev1.Lifecycle `json:"lifecycle,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -703,6 +721,16 @@ type ComponentSpec struct {
 	// supports additional volume mounts for sidecar containers.
 	// +optional
 	AdditionalVolumes []corev1.Volume `json:"additionalVolumes,omitempty"`
+
+	// Optional duration in seconds the pod needs to terminate gracefully. May be decreased in delete request.
+	// Value must be non-negative integer. The value zero indicates delete immediately.
+	// If this value is nil, the default grace period will be used instead.
+	// The grace period is the duration in seconds after the processes running in the pod are sent
+	// a termination signal and the time when the processes are forcibly halted with a kill signal.
+	// Set this value longer than the expected cleanup time for your process.
+	// Defaults to 30 seconds.
+	// +optional
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -751,6 +779,16 @@ type TiDBServiceSpec struct {
 	// Optional: Defaults to true
 	// +optional
 	ExposeStatus *bool `json:"exposeStatus,omitempty"`
+
+	// Expose the tidb cluster mysql port to MySQLNodePort
+	// Optional: Defaults to 0
+	// +optional
+	MySQLNodePort *int `json:"mysqlNodePort,omitempty"`
+
+	// Expose the tidb status node port to StatusNodePort
+	// Optional: Defaults to 0
+	// +optional
+	StatusNodePort *int `json:"statusNodePort,omitempty"`
 }
 
 // +k8s:openapi-gen=false
@@ -1077,6 +1115,19 @@ type TiDBAccessConfig struct {
 }
 
 // +k8s:openapi-gen=true
+// CleanPolicyType represents the clean policy of backup data in remote storage
+type CleanPolicyType string
+
+const (
+	// CleanPolicyTypeRetain represents that the backup data in remote storage will be retained when the Backup CR is deleted
+	CleanPolicyTypeRetain CleanPolicyType = "Retain"
+	// CleanPolicyTypeOnFailure represents that the backup data in remote storage will be cleaned only for the failed backups when the Backup CR is deleted
+	CleanPolicyTypeOnFailure CleanPolicyType = "OnFailure"
+	// CleanPolicyTypeIfFailed represents that the backup data in remote storage will be cleaned when the Backup CR is deleted
+	CleanPolicyTypeDelete CleanPolicyType = "Delete"
+)
+
+// +k8s:openapi-gen=true
 // BackupSpec contains the backup specification for a tidb cluster.
 type BackupSpec struct {
 	corev1.ResourceRequirements `json:"resources,omitempty"`
@@ -1098,8 +1149,8 @@ type BackupSpec struct {
 	StorageSize string `json:"storageSize,omitempty"`
 	// BRConfig is the configs for BR
 	BR *BRConfig `json:"br,omitempty"`
-	// MydumperConfig is the configs for mydumper
-	Mydumper *MydumperConfig `json:"mydumper,omitempty"`
+	// DumplingConfig is the configs for dumpling
+	Dumpling *DumplingConfig `json:"dumpling,omitempty"`
 	// Base tolerations of backup Pods, components may add more tolerations upon this respectively
 	// +optional
 	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
@@ -1113,15 +1164,17 @@ type BackupSpec struct {
 	UseKMS bool `json:"useKMS,omitempty"`
 	// Specify service account of backup
 	ServiceAccount string `json:"serviceAccount,omitempty"`
+	// CleanPolicy denotes whether to clean backup data when the object is deleted from the cluster, if not set, the backup data will be retained
+	CleanPolicy CleanPolicyType `json:"cleanPolicy,omitempty"`
 }
 
 // +k8s:openapi-gen=true
-// MydumperConfig contains config for mydumper
-type MydumperConfig struct {
-	// Options means options for backup data to remote storage with mydumper.
+// DumplingConfig contains config for dumpling
+type DumplingConfig struct {
+	// Options means options for backup data to remote storage with dumpling.
 	Options []string `json:"options,omitempty"`
-	// TableRegex means Regular expression for 'db.table' matching
-	TableRegex *string `json:"tableRegex,omitempty"`
+	// TableFilter means Table filter expression for 'db.table' matching
+	TableFilter []string `json:"tableFilter,omitempty"`
 }
 
 // +k8s:openapi-gen=true
@@ -1361,8 +1414,10 @@ type RestoreStatus struct {
 	// TimeStarted is the time at which the restore was started.
 	TimeStarted metav1.Time `json:"timeStarted"`
 	// TimeCompleted is the time at which the restore was completed.
-	TimeCompleted metav1.Time        `json:"timeCompleted"`
-	Conditions    []RestoreCondition `json:"conditions"`
+	TimeCompleted metav1.Time `json:"timeCompleted"`
+	// CommitTs is the snapshot time point of tidb cluster.
+	CommitTs   string             `json:"commitTs"`
+	Conditions []RestoreCondition `json:"conditions"`
 }
 
 // +k8s:openapi-gen=true

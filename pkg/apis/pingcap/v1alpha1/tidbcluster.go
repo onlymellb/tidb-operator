@@ -26,13 +26,11 @@ import (
 
 const (
 	// defaultHelperImage is default image of helper
-	defaultHelperImage      = "busybox:1.26.2"
-	defaultTimeZone         = "UTC"
-	defaultEnableTLSCluster = false
-	defaultEnableTLSClient  = false
-	defaultExposeStatus     = true
-	defaultSeparateSlowLog  = true
-	defaultEnablePVReclaim  = false
+	defaultHelperImage     = "busybox:1.26.2"
+	defaultTimeZone        = "UTC"
+	defaultExposeStatus    = true
+	defaultSeparateSlowLog = true
+	defaultEnablePVReclaim = false
 )
 
 var (
@@ -78,6 +76,16 @@ func (tc *TidbCluster) TiKVImage() string {
 		image = fmt.Sprintf("%s:%s", baseImage, *version)
 	}
 	return image
+}
+
+func (tc *TidbCluster) TiKVVersion() string {
+	image := tc.TiKVImage()
+	colonIdx := strings.LastIndexByte(image, ':')
+	if colonIdx >= 0 {
+		return image[colonIdx+1:]
+	}
+
+	return "latest"
 }
 
 func (tc *TidbCluster) TiKVContainerPrivilege() *bool {
@@ -208,6 +216,10 @@ func (tc *TidbCluster) TiKVScaling() bool {
 
 func (tc *TidbCluster) TiDBUpgrading() bool {
 	return tc.Status.TiDB.Phase == UpgradePhase
+}
+
+func (tc *TidbCluster) TiDBScaling() bool {
+	return tc.Status.TiDB.Phase == ScalePhase
 }
 
 func (tc *TidbCluster) TiFlashUpgrading() bool {
@@ -424,6 +436,9 @@ func (tc *TidbCluster) TiDBStsDesiredOrdinals(excludeFailover bool) sets.Int32 {
 }
 
 func (tc *TidbCluster) PDIsAvailable() bool {
+	if tc.Spec.PD == nil {
+		return true
+	}
 	lowerLimit := tc.Spec.PD.Replicas/2 + 1
 	if int32(len(tc.Status.PD.Members)) < lowerLimit {
 		return false
@@ -545,6 +560,22 @@ func (tidbSvc *TiDBServiceSpec) ShouldExposeStatus() bool {
 		return defaultExposeStatus
 	}
 	return *exposeStatus
+}
+
+func (tidbSvc *TiDBServiceSpec) GetMySQLNodePort() int32 {
+	mysqlNodePort := tidbSvc.MySQLNodePort
+	if mysqlNodePort == nil {
+		return 0
+	}
+	return int32(*mysqlNodePort)
+}
+
+func (tidbSvc *TiDBServiceSpec) GetStatusNodePort() int32 {
+	statusNodePort := tidbSvc.StatusNodePort
+	if statusNodePort == nil {
+		return 0
+	}
+	return int32(*statusNodePort)
 }
 
 func (tc *TidbCluster) GetInstanceName() string {

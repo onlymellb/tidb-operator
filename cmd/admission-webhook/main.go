@@ -16,6 +16,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"math/rand"
 	"os"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"github.com/pingcap/tidb-operator/pkg/version"
 	"github.com/pingcap/tidb-operator/pkg/webhook"
 	"github.com/pingcap/tidb-operator/pkg/webhook/pod"
+	"github.com/pingcap/tidb-operator/pkg/webhook/strategy"
 	"k8s.io/component-base/logs"
 	"k8s.io/klog"
 )
@@ -32,6 +34,7 @@ var (
 	printVersion             bool
 	extraServiceAccounts     string
 	evictRegionLeaderTimeout time.Duration
+	minResyncDuration        time.Duration
 )
 
 func init() {
@@ -39,6 +42,7 @@ func init() {
 	flag.BoolVar(&printVersion, "version", false, "Show version and quit")
 	flag.StringVar(&extraServiceAccounts, "extraServiceAccounts", "", "comma-separated, extra Service Accounts the Webhook should control. The full pattern for each common service account is system:serviceaccount:<namespace>:<serviceaccount-name>")
 	flag.DurationVar(&evictRegionLeaderTimeout, "evictRegionLeaderTimeout", 3*time.Minute, "TiKV evict region leader timeout period, default 3 min")
+	flag.DurationVar(&minResyncDuration, "min-resync-duration", 12*time.Hour, "The resync period in reflectors will be random between MinResyncPeriod and 2*MinResyncPeriod.")
 	features.DefaultFeatureGate.AddFlag(flag.CommandLine)
 }
 
@@ -56,10 +60,14 @@ func main() {
 	flag.CommandLine.VisitAll(func(flag *flag.Flag) {
 		klog.V(1).Infof("FLAG: --%s=%q", flag.Name, flag.Value)
 	})
+	// We choose a random resync period between MinResyncPeriod and 2 *
+	// MinResyncPeriod, so that our pods started at the same time don't list the apiserver simultaneously.
+	resyncDuration := time.Duration(minResyncDuration.Seconds()*(1+rand.Float64())) * time.Second
 
 	ah := &webhook.AdmissionHook{
 		ExtraServiceAccounts:     extraServiceAccounts,
 		EvictRegionLeaderTimeout: evictRegionLeaderTimeout,
+		ResyncDuration:           resyncDuration,
 	}
 	ns := os.Getenv("NAMESPACE")
 	if len(ns) < 1 {
@@ -67,5 +75,7 @@ func main() {
 	}
 	pod.AstsControllerServiceAccounts = fmt.Sprintf("system:serviceaccount:%s:advanced-statefulset-controller", ns)
 
-	cmd.RunAdmissionServer(ah)
+	strategyAdmissionHook := strategy.NewStrategyAdmissionHook(&strategy.Registry)
+
+	cmd.RunAdmissionServer(ah, strategyAdmissionHook)
 }

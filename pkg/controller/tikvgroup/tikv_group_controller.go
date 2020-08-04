@@ -18,18 +18,26 @@ import (
 	"time"
 
 	perrors "github.com/pingcap/errors"
+	"github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1"
 	"github.com/pingcap/tidb-operator/pkg/client/clientset/versioned"
 	informers "github.com/pingcap/tidb-operator/pkg/client/informers/externalversions"
 	listers "github.com/pingcap/tidb-operator/pkg/client/listers/pingcap/v1alpha1"
 	"github.com/pingcap/tidb-operator/pkg/controller"
+	"github.com/pingcap/tidb-operator/pkg/manager/member"
+	"github.com/pingcap/tidb-operator/pkg/manager/meta"
+	"github.com/pingcap/tidb-operator/pkg/pdapi"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	eventv1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type Controller struct {
@@ -41,11 +49,49 @@ type Controller struct {
 func NewController(
 	kubeCli kubernetes.Interface,
 	cli versioned.Interface,
+	genericCli client.Client,
 	informerFactory informers.SharedInformerFactory,
 	kubeInformerFactory kubeinformers.SharedInformerFactory) *Controller {
+	eventBroadcaster := record.NewBroadcaster()
+	eventBroadcaster.StartLogging(klog.V(2).Infof)
+	eventBroadcaster.StartRecordingToSink(&eventv1.EventSinkImpl{
+		Interface: eventv1.New(kubeCli.CoreV1().RESTClient()).Events("")})
+	recorder := eventBroadcaster.NewRecorder(v1alpha1.Scheme, corev1.EventSource{Component: "tikvgroup-controller-manager"})
+
+	pdControl := pdapi.NewDefaultPDControl(kubeCli)
 	tikvGroupInformer := informerFactory.Pingcap().V1alpha1().TiKVGroups()
+	setInformer := kubeInformerFactory.Apps().V1().StatefulSets()
+	svcInformer := kubeInformerFactory.Core().V1().Services()
+	tcInformer := informerFactory.Pingcap().V1alpha1().TidbClusters()
+	podInformer := kubeInformerFactory.Core().V1().Pods()
+	pvcInformer := kubeInformerFactory.Core().V1().PersistentVolumeClaims()
+	pvInformer := kubeInformerFactory.Core().V1().PersistentVolumes()
+
+	tgControl := controller.NewRealTiKVGroupControl(cli, tikvGroupInformer.Lister(), recorder)
+	setControl := controller.NewRealStatefuSetControl(kubeCli, setInformer.Lister(), recorder)
+	svcControl := controller.NewRealServiceControl(kubeCli, svcInformer.Lister(), recorder)
+	typedControl := controller.NewTypedControl(controller.NewRealGenericControl(genericCli, recorder))
+	pvControl := controller.NewRealPVControl(kubeCli, pvcInformer.Lister(), pvInformer.Lister(), recorder)
+	pvcControl := controller.NewRealPVCControl(kubeCli, recorder, pvcInformer.Lister())
+	podControl := controller.NewRealPodControl(kubeCli, pdControl, podInformer.Lister(), recorder)
+
+	tikvManager := member.NewTiKVGroupMemberManager(genericCli,
+		svcInformer.Lister(),
+		setInformer.Lister(),
+		podInformer.Lister(),
+		svcControl,
+		setControl,
+		typedControl,
+		member.NewTiKVScaler(pdControl, pvcInformer.Lister(), pvcControl, podInformer.Lister()),
+		member.NewTiKVGroupUpgrader(member.NewTiKVUpgrader(pdControl, podControl, podInformer.Lister())),
+		pdControl)
+	reclaimPolicyManager := meta.NewReclaimPolicyTiKVGroupManager(
+		pvcInformer.Lister(),
+		pvInformer.Lister(),
+		pvControl,
+	)
 	tg := &Controller{
-		control:  NewDefaultTikvGroupControl(),
+		control:  NewDefaultTikvGroupControl(tgControl, tikvManager, reclaimPolicyManager, tcInformer.Lister()),
 		tgLister: tikvGroupInformer.Lister(),
 		queue: workqueue.NewNamedRateLimitingQueue(
 			workqueue.DefaultControllerRateLimiter(),
@@ -70,7 +116,6 @@ func (tgc *Controller) Run(workers int, stopCh <-chan struct{}) {
 
 func (tgc *Controller) worker() {
 	for tgc.processNestWorkItem() {
-		// revive:disable:empty-block
 	}
 }
 

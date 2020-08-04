@@ -21,15 +21,13 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/pingcap/kvproto/pkg/metapb"
 	"github.com/pingcap/kvproto/pkg/pdpb"
 	"github.com/pingcap/pd/pkg/typeutil"
-	"github.com/pingcap/tidb-operator/pkg/httputil"
-	"github.com/pingcap/tidb-operator/pkg/util"
 	"github.com/pingcap/tidb-operator/pkg/util/crypto"
+	httputil "github.com/pingcap/tidb-operator/pkg/util/http"
 	types "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
@@ -40,117 +38,14 @@ const (
 	evictSchedulerLeader = "evict-leader-scheduler"
 )
 
-// Payload only used to unmarshal the data from pdapi
-type Payload struct {
-	StoreIdRanges map[string]interface{} `json:"store-id-ranges"`
-}
-
-// Namespace is a newtype of a string
-type Namespace string
-
-// PDControlInterface is an interface that knows how to manage and get tidb cluster's PD client
-type PDControlInterface interface {
-	// GetPDClient provides PDClient of the tidb cluster.
-	GetPDClient(Namespace, string, bool) PDClient
-	// GetPDEtcdClient provides PD etcd Client of the tidb cluster.
-	GetPDEtcdClient(namespace Namespace, tcName string, tlsEnabled bool) (PDEtcdClient, error)
-}
-
-// defaultPDControl is the default implementation of PDControlInterface.
-type defaultPDControl struct {
-	mutex         sync.Mutex
-	etcdmutex     sync.Mutex
-	kubeCli       kubernetes.Interface
-	pdClients     map[string]PDClient
-	pdEtcdClients map[string]PDEtcdClient
-}
-
-// NewDefaultPDControl returns a defaultPDControl instance
-func NewDefaultPDControl(kubeCli kubernetes.Interface) PDControlInterface {
-	return &defaultPDControl{kubeCli: kubeCli, pdClients: map[string]PDClient{}, pdEtcdClients: map[string]PDEtcdClient{}}
-}
-
 // GetTLSConfig returns *tls.Config for given TiDB cluster.
-// It loads in-cluster root ca if caCert is empty.
-func GetTLSConfig(kubeCli kubernetes.Interface, namespace Namespace, tcName string, caCert []byte) (*tls.Config, error) {
-	secretName := util.ClusterClientTLSSecretName(tcName)
+func GetTLSConfig(kubeCli kubernetes.Interface, namespace Namespace, tcName string, secretName string) (*tls.Config, error) {
 	secret, err := kubeCli.CoreV1().Secrets(string(namespace)).Get(secretName, types.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("unable to load certificates from secret %s/%s: %v", namespace, secretName, err)
 	}
 
-	return crypto.LoadTlsConfigFromSecret(secret, caCert)
-}
-
-func (pdc *defaultPDControl) GetPDEtcdClient(namespace Namespace, tcName string, tlsEnabled bool) (PDEtcdClient, error) {
-	pdc.etcdmutex.Lock()
-	defer pdc.etcdmutex.Unlock()
-
-	var tlsConfig *tls.Config
-	var err error
-
-	if tlsEnabled {
-		tlsConfig, err = GetTLSConfig(pdc.kubeCli, namespace, tcName, nil)
-		if err != nil {
-			klog.Errorf("Unable to get tls config for tidb cluster %q, pd etcd client may not work: %v", tcName, err)
-			return nil, err
-		}
-		return NewPdEtcdClient(PDEtcdClientURL(namespace, tcName), DefaultTimeout, tlsConfig)
-	}
-	key := pdEtcdClientKey(namespace, tcName)
-	if _, ok := pdc.pdEtcdClients[key]; !ok {
-		pdetcdClient, err := NewPdEtcdClient(PDEtcdClientURL(namespace, tcName), DefaultTimeout, nil)
-		if err != nil {
-			return nil, err
-		}
-		pdc.pdEtcdClients[key] = pdetcdClient
-	}
-	return pdc.pdEtcdClients[key], nil
-}
-
-// GetPDClient provides a PDClient of real pd cluster,if the PDClient not existing, it will create new one.
-func (pdc *defaultPDControl) GetPDClient(namespace Namespace, tcName string, tlsEnabled bool) PDClient {
-	pdc.mutex.Lock()
-	defer pdc.mutex.Unlock()
-
-	var tlsConfig *tls.Config
-	var err error
-	var scheme = "http"
-
-	if tlsEnabled {
-		scheme = "https"
-		tlsConfig, err = GetTLSConfig(pdc.kubeCli, namespace, tcName, nil)
-		if err != nil {
-			klog.Errorf("Unable to get tls config for tidb cluster %q, pd client may not work: %v", tcName, err)
-			return &pdClient{url: PdClientURL(namespace, tcName, scheme), httpClient: &http.Client{Timeout: DefaultTimeout}}
-		}
-
-		return NewPDClient(PdClientURL(namespace, tcName, scheme), DefaultTimeout, tlsConfig)
-	}
-
-	key := pdClientKey(scheme, namespace, tcName)
-	if _, ok := pdc.pdClients[key]; !ok {
-		pdc.pdClients[key] = NewPDClient(PdClientURL(namespace, tcName, scheme), DefaultTimeout, nil)
-	}
-	return pdc.pdClients[key]
-}
-
-// pdClientKey returns the pd client key
-func pdClientKey(scheme string, namespace Namespace, clusterName string) string {
-	return fmt.Sprintf("%s.%s.%s", scheme, clusterName, string(namespace))
-}
-
-func pdEtcdClientKey(namespace Namespace, clusterName string) string {
-	return fmt.Sprintf("%s.%s", clusterName, string(namespace))
-}
-
-// pdClientUrl builds the url of pd client
-func PdClientURL(namespace Namespace, clusterName string, scheme string) string {
-	return fmt.Sprintf("%s://%s-pd.%s:2379", scheme, clusterName, string(namespace))
-}
-
-func PDEtcdClientURL(namespace Namespace, clusterName string) string {
-	return fmt.Sprintf("%s-pd.%s:2379", clusterName, string(namespace))
+	return crypto.LoadTlsConfigFromSecret(secret)
 }
 
 // PDClient provides pd server's api
@@ -206,6 +101,9 @@ var (
 	pdLeaderPrefix         = "pd/api/v1/leader"
 	pdLeaderTransferPrefix = "pd/api/v1/leader/transfer"
 	pdReplicationPrefix    = "pd/api/v1/config/replicate"
+	// evictLeaderSchedulerConfigPrefix is the prefix of evict-leader-scheduler
+	// config API, available since PD v3.1.0.
+	evictLeaderSchedulerConfigPrefix = "pd/api/v1/scheduler-config/evict-leader-scheduler/list"
 )
 
 // pdClient is default implementation of PDClient
@@ -347,8 +245,7 @@ func (pc *pdClient) GetMembers() (*MembersInfo, error) {
 	return members, nil
 }
 
-func (pc *pdClient) GetStores() (*StoresInfo, error) {
-	apiURL := fmt.Sprintf("%s/%s", pc.url, storesPrefix)
+func (pc *pdClient) getStores(apiURL string) (*StoresInfo, error) {
 	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
 	if err != nil {
 		return nil, err
@@ -361,18 +258,12 @@ func (pc *pdClient) GetStores() (*StoresInfo, error) {
 	return storesInfo, nil
 }
 
+func (pc *pdClient) GetStores() (*StoresInfo, error) {
+	return pc.getStores(fmt.Sprintf("%s/%s", pc.url, storesPrefix))
+}
+
 func (pc *pdClient) GetTombStoneStores() (*StoresInfo, error) {
-	apiURL := fmt.Sprintf("%s/%s?state=%d", pc.url, storesPrefix, metapb.StoreState_Tombstone)
-	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
-	if err != nil {
-		return nil, err
-	}
-	storesInfo := &StoresInfo{}
-	err = json.Unmarshal(body, storesInfo)
-	if err != nil {
-		return nil, err
-	}
-	return storesInfo, nil
+	return pc.getStores(fmt.Sprintf("%s/%s?state=%d", pc.url, storesPrefix, metapb.StoreState_Tombstone))
 }
 
 func (pc *pdClient) GetStore(storeID uint64) (*StoreInfo, error) {
@@ -643,7 +534,7 @@ func (pc *pdClient) GetEvictLeaderSchedulers() ([]string, error) {
 	}
 	var evicts []string
 	for _, scheduler := range schedulers {
-		if strings.HasPrefix(scheduler, "evict-leader-scheduler") {
+		if strings.HasPrefix(scheduler, evictSchedulerLeader) {
 			evicts = append(evicts, scheduler)
 		}
 	}
@@ -654,27 +545,39 @@ func (pc *pdClient) GetEvictLeaderSchedulers() ([]string, error) {
 	return evictSchedulers, nil
 }
 
-// This method is to make compatible between old pdapi version and 4.0 pdapi version.
-// To get more detail, see: https://github.com/pingcap/tidb-operator/pull/1831
+// getEvictLeaderSchedulerConfig gets the config of PD scheduler "evict-leader-scheduler"
+// It's available since PD 3.1.0.
+// In the previous versions, PD API returns 404 and this function will return an error.
+func (pc *pdClient) getEvictLeaderSchedulerConfig() (*evictLeaderSchedulerConfig, error) {
+	apiURL := fmt.Sprintf("%s/%s", pc.url, evictLeaderSchedulerConfigPrefix)
+	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
+	if err != nil {
+		return nil, err
+	}
+	config := &evictLeaderSchedulerConfig{}
+	err = json.Unmarshal(body, config)
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+// This method is to make compatible between old pdapi version and versions after 3.1/4.0.
+// To get more detail, see:
+// - https://github.com/pingcap/tidb-operator/pull/1831
+// - https://github.com/pingcap/pd/issues/2550
 func (pc *pdClient) filterLeaderEvictScheduler(evictLeaderSchedulers []string) ([]string, error) {
 	var schedulerIds []string
 	if len(evictLeaderSchedulers) == 1 && evictLeaderSchedulers[0] == evictSchedulerLeader {
-		c, err := pc.GetConfig()
+		// If there is only one evcit scehduler entry without store ID postfix.
+		// We should get the store IDs via scheduler config API and append them
+		// to provide consistent results.
+		c, err := pc.getEvictLeaderSchedulerConfig()
 		if err != nil {
 			return nil, err
 		}
-		if c.Schedule != nil && c.Schedule.SchedulersPayload != nil {
-			v, ok := c.Schedule.SchedulersPayload[evictSchedulerLeader]
-			if ok {
-				payload := &Payload{}
-				err := json.Unmarshal([]byte(v), payload)
-				if err != nil {
-					return nil, err
-				}
-				for k := range payload.StoreIdRanges {
-					schedulerIds = append(schedulerIds, fmt.Sprintf("%s-%v", evictSchedulerLeader, k))
-				}
-			}
+		for k := range c.StoreIDWithRanges {
+			schedulerIds = append(schedulerIds, fmt.Sprintf("%s-%v", evictSchedulerLeader, k))
 		}
 	} else {
 		for _, s := range evictLeaderSchedulers {
@@ -716,271 +619,10 @@ func (pc *pdClient) TransferPDLeader(memberName string) error {
 	return fmt.Errorf("failed %v to transfer pd leader to %s,error: %v", res.StatusCode, memberName, err2)
 }
 
-func (pc *pdClient) getBodyOK(apiURL string) ([]byte, error) {
-	res, err := pc.httpClient.Get(apiURL)
-	if err != nil {
-		return nil, err
-	}
-	defer httputil.DeferClose(res.Body)
-	if res.StatusCode >= 400 {
-		errMsg := fmt.Errorf(fmt.Sprintf("Error response %v URL %s", res.StatusCode, apiURL))
-		return nil, errMsg
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-	return body, err
-}
-
 func getLeaderEvictSchedulerInfo(storeID uint64) *schedulerInfo {
 	return &schedulerInfo{"evict-leader-scheduler", storeID}
 }
 
 func getLeaderEvictSchedulerStr(storeID uint64) string {
 	return fmt.Sprintf("%s-%d", "evict-leader-scheduler", storeID)
-}
-
-type FakePDControl struct {
-	defaultPDControl
-}
-
-func NewFakePDControl(kubeCli kubernetes.Interface) *FakePDControl {
-	return &FakePDControl{
-		defaultPDControl{kubeCli: kubeCli, pdClients: map[string]PDClient{}},
-	}
-}
-
-func (fpc *FakePDControl) SetPDClient(namespace Namespace, tcName string, pdclient PDClient) {
-	fpc.defaultPDControl.pdClients[pdClientKey("http", namespace, tcName)] = pdclient
-}
-
-type ActionType string
-
-const (
-	GetHealthActionType                ActionType = "GetHealth"
-	GetConfigActionType                ActionType = "GetConfig"
-	GetClusterActionType               ActionType = "GetCluster"
-	GetMembersActionType               ActionType = "GetMembers"
-	GetStoresActionType                ActionType = "GetStores"
-	GetTombStoneStoresActionType       ActionType = "GetTombStoneStores"
-	GetStoreActionType                 ActionType = "GetStore"
-	DeleteStoreActionType              ActionType = "DeleteStore"
-	SetStoreStateActionType            ActionType = "SetStoreState"
-	DeleteMemberByIDActionType         ActionType = "DeleteMemberByID"
-	DeleteMemberActionType             ActionType = "DeleteMember "
-	SetStoreLabelsActionType           ActionType = "SetStoreLabels"
-	UpdateReplicationActionType        ActionType = "UpdateReplicationConfig"
-	BeginEvictLeaderActionType         ActionType = "BeginEvictLeader"
-	EndEvictLeaderActionType           ActionType = "EndEvictLeader"
-	GetEvictLeaderSchedulersActionType ActionType = "GetEvictLeaderSchedulers"
-	GetPDLeaderActionType              ActionType = "GetPDLeader"
-	TransferPDLeaderActionType         ActionType = "TransferPDLeader"
-)
-
-type NotFoundReaction struct {
-	actionType ActionType
-}
-
-func (nfr *NotFoundReaction) Error() string {
-	return fmt.Sprintf("not found %s reaction. Please add the reaction", nfr.actionType)
-}
-
-type Action struct {
-	ID          uint64
-	Name        string
-	Labels      map[string]string
-	Replication PDReplicationConfig
-}
-
-type Reaction func(action *Action) (interface{}, error)
-
-type FakePDClient struct {
-	reactions map[ActionType]Reaction
-}
-
-func NewFakePDClient() *FakePDClient {
-	return &FakePDClient{reactions: map[ActionType]Reaction{}}
-}
-
-func (pc *FakePDClient) AddReaction(actionType ActionType, reaction Reaction) {
-	pc.reactions[actionType] = reaction
-}
-
-// fakeAPI is a small helper for fake API calls
-func (pc *FakePDClient) fakeAPI(actionType ActionType, action *Action) (interface{}, error) {
-	if reaction, ok := pc.reactions[actionType]; ok {
-		result, err := reaction(action)
-		if err != nil {
-			return nil, err
-		}
-		return result, nil
-	}
-	return nil, &NotFoundReaction{actionType}
-}
-
-func (pc *FakePDClient) GetHealth() (*HealthInfo, error) {
-	action := &Action{}
-	result, err := pc.fakeAPI(GetHealthActionType, action)
-	if err != nil {
-		return nil, err
-	}
-	return result.(*HealthInfo), nil
-}
-
-func (pc *FakePDClient) GetConfig() (*PDConfigFromAPI, error) {
-	action := &Action{}
-	result, err := pc.fakeAPI(GetConfigActionType, action)
-	if err != nil {
-		return nil, err
-	}
-	return result.(*PDConfigFromAPI), nil
-}
-
-func (pc *FakePDClient) GetCluster() (*metapb.Cluster, error) {
-	action := &Action{}
-	result, err := pc.fakeAPI(GetClusterActionType, action)
-	if err != nil {
-		return nil, err
-	}
-	return result.(*metapb.Cluster), nil
-}
-
-func (pc *FakePDClient) GetMembers() (*MembersInfo, error) {
-	action := &Action{}
-	result, err := pc.fakeAPI(GetMembersActionType, action)
-	if err != nil {
-		return nil, err
-	}
-	return result.(*MembersInfo), nil
-}
-
-func (pc *FakePDClient) GetStores() (*StoresInfo, error) {
-	action := &Action{}
-	result, err := pc.fakeAPI(GetStoresActionType, action)
-	if err != nil {
-		return nil, err
-	}
-	return result.(*StoresInfo), nil
-}
-
-func (pc *FakePDClient) GetTombStoneStores() (*StoresInfo, error) {
-	action := &Action{}
-	result, err := pc.fakeAPI(GetTombStoneStoresActionType, action)
-	if err != nil {
-		return nil, err
-	}
-	return result.(*StoresInfo), nil
-}
-
-func (pc *FakePDClient) GetStore(id uint64) (*StoreInfo, error) {
-	action := &Action{
-		ID: id,
-	}
-	result, err := pc.fakeAPI(GetStoreActionType, action)
-	if err != nil {
-		return nil, err
-	}
-	return result.(*StoreInfo), nil
-}
-
-func (pc *FakePDClient) DeleteStore(id uint64) error {
-	if reaction, ok := pc.reactions[DeleteStoreActionType]; ok {
-		action := &Action{ID: id}
-		_, err := reaction(action)
-		return err
-	}
-	return nil
-}
-
-func (pc *FakePDClient) SetStoreState(id uint64, state string) error {
-	if reaction, ok := pc.reactions[SetStoreStateActionType]; ok {
-		action := &Action{ID: id}
-		_, err := reaction(action)
-		return err
-	}
-	return nil
-}
-
-func (pc *FakePDClient) DeleteMemberByID(id uint64) error {
-	if reaction, ok := pc.reactions[DeleteMemberByIDActionType]; ok {
-		action := &Action{ID: id}
-		_, err := reaction(action)
-		return err
-	}
-	return nil
-}
-
-func (pc *FakePDClient) DeleteMember(name string) error {
-	if reaction, ok := pc.reactions[DeleteMemberActionType]; ok {
-		action := &Action{Name: name}
-		_, err := reaction(action)
-		return err
-	}
-	return nil
-}
-
-// SetStoreLabels sets TiKV labels
-func (pc *FakePDClient) SetStoreLabels(storeID uint64, labels map[string]string) (bool, error) {
-	if reaction, ok := pc.reactions[SetStoreLabelsActionType]; ok {
-		action := &Action{ID: storeID, Labels: labels}
-		result, err := reaction(action)
-		return result.(bool), err
-	}
-	return true, nil
-}
-
-// UpdateReplicationConfig updates the replication config
-func (pc *FakePDClient) UpdateReplicationConfig(config PDReplicationConfig) error {
-	if reaction, ok := pc.reactions[UpdateReplicationActionType]; ok {
-		action := &Action{Replication: config}
-		_, err := reaction(action)
-		return err
-	}
-	return nil
-}
-
-func (pc *FakePDClient) BeginEvictLeader(storeID uint64) error {
-	if reaction, ok := pc.reactions[BeginEvictLeaderActionType]; ok {
-		action := &Action{ID: storeID}
-		_, err := reaction(action)
-		return err
-	}
-	return nil
-}
-
-func (pc *FakePDClient) EndEvictLeader(storeID uint64) error {
-	if reaction, ok := pc.reactions[EndEvictLeaderActionType]; ok {
-		action := &Action{ID: storeID}
-		_, err := reaction(action)
-		return err
-	}
-	return nil
-}
-
-func (pc *FakePDClient) GetEvictLeaderSchedulers() ([]string, error) {
-	if reaction, ok := pc.reactions[GetEvictLeaderSchedulersActionType]; ok {
-		action := &Action{}
-		result, err := reaction(action)
-		return result.([]string), err
-	}
-	return nil, nil
-}
-
-func (pc *FakePDClient) GetPDLeader() (*pdpb.Member, error) {
-	if reaction, ok := pc.reactions[GetPDLeaderActionType]; ok {
-		action := &Action{}
-		result, err := reaction(action)
-		return result.(*pdpb.Member), err
-	}
-	return nil, nil
-}
-
-func (pc *FakePDClient) TransferPDLeader(memberName string) error {
-	if reaction, ok := pc.reactions[TransferPDLeaderActionType]; ok {
-		action := &Action{Name: memberName}
-		_, err := reaction(action)
-		return err
-	}
-	return nil
 }

@@ -30,6 +30,18 @@ import (
 )
 
 var (
+	tikvConfig = &v1alpha1.TiKVConfig{
+		LogLevel: pointer.StringPtr("info"),
+		Server:   &v1alpha1.TiKVServerConfig{},
+		Storage: &v1alpha1.TiKVStorageConfig{
+			// Don't reserve space in e2e tests, see
+			// https://github.com/pingcap/tidb-operator/issues/2509.
+			ReserveSpace: pointer.StringPtr("0MB"),
+		},
+	}
+)
+
+var (
 	BestEffort    = corev1.ResourceRequirements{}
 	BurstbleSmall = corev1.ResourceRequirements{
 		Requests: corev1.ResourceList{
@@ -74,15 +86,10 @@ var (
 
 // GetTidbCluster returns a TidbCluster resource configured for testing
 func GetTidbCluster(ns, name, version string) *v1alpha1.TidbCluster {
-	tikvStorageConfig := &v1alpha1.TiKVStorageConfig{
-		// Don't reserve space in e2e tests, see
-		// https://github.com/pingcap/tidb-operator/issues/2509.
-		ReserveSpace: pointer.StringPtr("0MB"),
-	}
 	// We assume all unparsable versions are greater or equal to v4.0.0-beta,
 	// e.g. nightly.
 	if v, err := semver.NewVersion(version); err == nil && v.LessThan(tikvV4Beta) {
-		tikvStorageConfig = nil
+		tikvConfig.Storage = nil
 	}
 	deletePVP := corev1.PersistentVolumeReclaimDelete
 	return &v1alpha1.TidbCluster{
@@ -96,8 +103,7 @@ func GetTidbCluster(ns, name, version string) *v1alpha1.TidbCluster {
 			PVReclaimPolicy: &deletePVP,
 			SchedulerName:   "tidb-scheduler",
 			Timezone:        "Asia/Shanghai",
-
-			PD: v1alpha1.PDSpec{
+			PD: &v1alpha1.PDSpec{
 				Replicas:             3,
 				BaseImage:            "pingcap/pd",
 				ResourceRequirements: WithStorage(BurstbleSmall, "1Gi"),
@@ -115,22 +121,18 @@ func GetTidbCluster(ns, name, version string) *v1alpha1.TidbCluster {
 				},
 			},
 
-			TiKV: v1alpha1.TiKVSpec{
+			TiKV: &v1alpha1.TiKVSpec{
 				Replicas:             3,
 				BaseImage:            "pingcap/tikv",
 				ResourceRequirements: WithStorage(BurstbleMedium, "10Gi"),
 				MaxFailoverCount:     pointer.Int32Ptr(3),
-				Config: &v1alpha1.TiKVConfig{
-					LogLevel: pointer.StringPtr("info"),
-					Server:   &v1alpha1.TiKVServerConfig{},
-					Storage:  tikvStorageConfig,
-				},
+				Config:               tikvConfig,
 				ComponentSpec: v1alpha1.ComponentSpec{
 					Affinity: buildAffinity(name, ns, v1alpha1.TiKVMemberType),
 				},
 			},
 
-			TiDB: v1alpha1.TiDBSpec{
+			TiDB: &v1alpha1.TiDBSpec{
 				Replicas:             2,
 				BaseImage:            "pingcap/tidb",
 				ResourceRequirements: BurstbleMedium,
@@ -153,6 +155,34 @@ func GetTidbCluster(ns, name, version string) *v1alpha1.TidbCluster {
 			},
 		},
 	}
+}
+
+func GetTiKVGroup(ns, name, clusterName, version string) *v1alpha1.TiKVGroup {
+	// We assume all unparsable versions are greater or equal to v4.0.0-beta,
+	// e.g. nightly.
+	if v, err := semver.NewVersion(version); err == nil && v.LessThan(tikvV4Beta) {
+		tikvConfig.Storage = nil
+	}
+	tg := &v1alpha1.TiKVGroup{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+		},
+		Spec: v1alpha1.TiKVGroupSpec{
+			TiKVSpec: v1alpha1.TiKVSpec{
+				Replicas:             3,
+				ResourceRequirements: WithStorage(BurstbleMedium, "10Gi"),
+				MaxFailoverCount:     pointer.Int32Ptr(3),
+				Config:               tikvConfig,
+				ComponentSpec: v1alpha1.ComponentSpec{
+					Affinity: buildAffinity(name, ns, v1alpha1.TiKVMemberType),
+					Image:    fmt.Sprintf("pingcap/tikv:%s", version),
+				},
+			},
+			ClusterName: clusterName,
+		},
+	}
+	return tg
 }
 
 func buildAffinity(name, namespace string, memberType v1alpha1.MemberType) *corev1.Affinity {
@@ -233,18 +263,18 @@ func NewTidbMonitor(name, namespace string, tc *v1alpha1.TidbCluster, grafanaEna
 					Annotations: map[string]string{},
 				},
 				MonitorContainer: v1alpha1.MonitorContainer{
-					BaseImage:       utilimage.PrometheusImage,
-					Version:         utilimage.PrometheusVersion,
-					ImagePullPolicy: &imagePullPolicy,
-					Resources:       corev1.ResourceRequirements{},
+					BaseImage:            utilimage.PrometheusImage,
+					Version:              utilimage.PrometheusVersion,
+					ImagePullPolicy:      &imagePullPolicy,
+					ResourceRequirements: corev1.ResourceRequirements{},
 				},
 			},
 			Reloader: v1alpha1.ReloaderSpec{
 				MonitorContainer: v1alpha1.MonitorContainer{
-					BaseImage:       utilimage.TiDBMonitorReloaderImage,
-					Version:         utilimage.TiDBMonitorReloaderVersion,
-					ImagePullPolicy: &imagePullPolicy,
-					Resources:       corev1.ResourceRequirements{},
+					BaseImage:            utilimage.TiDBMonitorReloaderImage,
+					Version:              utilimage.TiDBMonitorReloaderVersion,
+					ImagePullPolicy:      &imagePullPolicy,
+					ResourceRequirements: corev1.ResourceRequirements{},
 				},
 				Service: v1alpha1.ServiceSpec{
 					Type:        "ClusterIP",
@@ -253,10 +283,10 @@ func NewTidbMonitor(name, namespace string, tc *v1alpha1.TidbCluster, grafanaEna
 			},
 			Initializer: v1alpha1.InitializerSpec{
 				MonitorContainer: v1alpha1.MonitorContainer{
-					BaseImage:       utilimage.TiDBMonitorInitializerImage,
-					Version:         utilimage.TiDBMonitorInitializerVersion,
-					ImagePullPolicy: &imagePullPolicy,
-					Resources:       corev1.ResourceRequirements{},
+					BaseImage:            utilimage.TiDBMonitorInitializerImage,
+					Version:              utilimage.TiDBMonitorInitializerVersion,
+					ImagePullPolicy:      &imagePullPolicy,
+					ResourceRequirements: corev1.ResourceRequirements{},
 				},
 				Envs: map[string]string{},
 			},
@@ -266,10 +296,10 @@ func NewTidbMonitor(name, namespace string, tc *v1alpha1.TidbCluster, grafanaEna
 	if grafanaEnabled {
 		monitor.Spec.Grafana = &v1alpha1.GrafanaSpec{
 			MonitorContainer: v1alpha1.MonitorContainer{
-				BaseImage:       utilimage.GrafanaImage,
-				Version:         utilimage.GrafanaVersion,
-				ImagePullPolicy: &imagePullPolicy,
-				Resources:       corev1.ResourceRequirements{},
+				BaseImage:            utilimage.GrafanaImage,
+				Version:              utilimage.GrafanaVersion,
+				ImagePullPolicy:      &imagePullPolicy,
+				ResourceRequirements: corev1.ResourceRequirements{},
 			},
 			Username: "admin",
 			Password: "admin",
@@ -437,6 +467,7 @@ func GetBackupCRDWithS3(tc *v1alpha1.TidbCluster, fromSecretName, brType string,
 				ClusterNamespace: tc.GetNamespace(),
 				SendCredToTikv:   &sendCredToTikv,
 			},
+			CleanPolicy: v1alpha1.CleanPolicyTypeDelete,
 		},
 	}
 	if brType == DumperType {

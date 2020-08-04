@@ -199,6 +199,10 @@ func getMonitorDeployment(sa *core.ServiceAccount, config *core.ConfigMap, secre
 	prometheusContainer := getMonitorPrometheusContainer(monitor, tc)
 	reloaderContainer := getMonitorReloaderContainer(monitor, tc)
 	deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, prometheusContainer, reloaderContainer)
+	additionalContainers := monitor.Spec.AdditionalContainers
+	if len(additionalContainers) > 0 {
+		deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, additionalContainers...)
+	}
 	if monitor.Spec.Grafana != nil {
 		grafanaContainer := getMonitorGrafanaContainer(secret, monitor, tc)
 		deployment.Spec.Template.Spec.Containers = append(deployment.Spec.Template.Spec.Containers, grafanaContainer)
@@ -329,7 +333,7 @@ chmod 777 /data/prometheus /data/grafana
 				Name:      "monitor-data",
 			},
 		},
-		Resources: controller.ContainerResource(monitor.Spec.Initializer.Resources),
+		Resources: controller.ContainerResource(monitor.Spec.Initializer.ResourceRequirements),
 	}
 
 	if monitor.Spec.Initializer.ImagePullPolicy != nil {
@@ -373,7 +377,7 @@ func getMonitorPrometheusContainer(monitor *v1alpha1.TidbMonitor, tc *v1alpha1.T
 	c := core.Container{
 		Name:      "prometheus",
 		Image:     fmt.Sprintf("%s:%s", monitor.Spec.Prometheus.BaseImage, monitor.Spec.Prometheus.Version),
-		Resources: controller.ContainerResource(monitor.Spec.Prometheus.Resources),
+		Resources: controller.ContainerResource(monitor.Spec.Prometheus.ResourceRequirements),
 		Command: []string{
 			"/bin/prometheus",
 		},
@@ -424,7 +428,7 @@ func getMonitorPrometheusContainer(monitor *v1alpha1.TidbMonitor, tc *v1alpha1.T
 
 	if tc.IsTLSClusterEnabled() {
 		c.VolumeMounts = append(c.VolumeMounts, core.VolumeMount{
-			Name:      "cluster-client-tls",
+			Name:      util.ClusterClientVolName,
 			MountPath: util.ClusterClientTLSPath,
 			ReadOnly:  true,
 		})
@@ -439,7 +443,7 @@ func getMonitorGrafanaContainer(secret *core.Secret, monitor *v1alpha1.TidbMonit
 	c := core.Container{
 		Name:      "grafana",
 		Image:     fmt.Sprintf("%s:%s", monitor.Spec.Grafana.BaseImage, monitor.Spec.Grafana.Version),
-		Resources: controller.ContainerResource(monitor.Spec.Grafana.Resources),
+		Resources: controller.ContainerResource(monitor.Spec.Grafana.ResourceRequirements),
 		Ports: []core.ContainerPort{
 			{
 				Name:          "grafana",
@@ -543,7 +547,7 @@ func getMonitorReloaderContainer(monitor *v1alpha1.TidbMonitor, tc *v1alpha1.Tid
 				MountPath: "/data",
 			},
 		},
-		Resources: controller.ContainerResource(monitor.Spec.Reloader.Resources),
+		Resources: controller.ContainerResource(monitor.Spec.Reloader.ResourceRequirements),
 		Env: []core.EnvVar{
 			{
 				Name:  "TZ",
@@ -634,7 +638,7 @@ func getMonitorVolumes(config *core.ConfigMap, monitor *v1alpha1.TidbMonitor, tc
 	if tc.IsTLSClusterEnabled() {
 		defaultMode := int32(420)
 		tlsPDClient := core.Volume{
-			Name: "cluster-client-tls",
+			Name: util.ClusterClientVolName,
 			VolumeSource: core.VolumeSource{
 				Secret: &core.SecretVolumeSource{
 					SecretName:  util.ClusterClientTLSSecretName(tc.Name),

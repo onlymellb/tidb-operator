@@ -24,10 +24,12 @@ import (
 
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
+	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	asclientset "github.com/pingcap/advanced-statefulset/client/client/clientset/versioned"
 	"github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1"
 	"github.com/pingcap/tidb-operator/pkg/client/clientset/versioned"
 	"github.com/pingcap/tidb-operator/pkg/controller"
+	"github.com/pingcap/tidb-operator/pkg/features"
 	"github.com/pingcap/tidb-operator/pkg/label"
 	"github.com/pingcap/tidb-operator/pkg/scheme"
 	"github.com/pingcap/tidb-operator/pkg/util"
@@ -49,6 +51,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	clientset "k8s.io/client-go/kubernetes"
+	typedappsv1 "k8s.io/client-go/kubernetes/typed/apps/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/klog"
 	aggregatorclient "k8s.io/kube-aggregator/pkg/client/clientset_generated/clientset"
@@ -74,6 +77,12 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 	var config *restclient.Config
 	var fw portforward.PortForward
 	var fwCancel context.CancelFunc
+	var ocfg *tests.OperatorConfig
+	var crdUtil *tests.CrdTestUtil
+	/**
+	 * StatefulSet or AdvancedStatefulSet getter interface.
+	 */
+	var stsGetter typedappsv1.StatefulSetsGetter
 
 	ginkgo.BeforeEach(func() {
 		ns = f.Namespace.Name
@@ -103,6 +112,14 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 		framework.ExpectNoError(err, "failed to create port forwarder")
 		fwCancel = cancel
 		cfg = e2econfig.TestConfig
+		cfg = e2econfig.TestConfig
+		ocfg = e2econfig.NewDefaultOperatorConfig(cfg)
+		if ocfg.Enabled(features.AdvancedStatefulSet) {
+			stsGetter = helper.NewHijackClient(c, asCli).AppsV1()
+		} else {
+			stsGetter = c.AppsV1()
+		}
+		crdUtil = tests.NewCrdTestUtil(cli, c, asCli, stsGetter)
 	})
 
 	ginkgo.AfterEach(func() {
@@ -209,6 +226,79 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 		})
 	})
 
+	ginkgo.Context("[Feature: TiKVGroup]", func() {
+		var ocfg *tests.OperatorConfig
+		var oa tests.OperatorActions
+
+		ginkgo.BeforeEach(func() {
+			ocfg = &tests.OperatorConfig{
+				Namespace:         ns,
+				ReleaseName:       "operator",
+				Image:             cfg.OperatorImage,
+				Tag:               cfg.OperatorTag,
+				LogLevel:          "4",
+				TestMode:          true,
+				WebhookEnabled:    true,
+				PodWebhookEnabled: true,
+				StsWebhookEnabled: false,
+			}
+			oa = tests.NewOperatorActions(cli, c, asCli, aggrCli, apiExtCli, tests.DefaultPollInterval, ocfg, e2econfig.TestConfig, nil, fw, f)
+			ginkgo.By("Installing CRDs")
+			oa.CleanCRDOrDie()
+			oa.InstallCRDOrDie(ocfg)
+			ginkgo.By("Installing tidb-operator")
+			oa.CleanOperatorOrDie(ocfg)
+			oa.DeployOperatorOrDie(ocfg)
+		})
+
+		ginkgo.AfterEach(func() {
+			ginkgo.By("Uninstall tidb-operator")
+			oa.CleanOperatorOrDie(ocfg)
+			ginkgo.By("Uninstalling CRDs")
+			oa.CleanCRDOrDie()
+		})
+
+		ginkgo.It("[Feature: TiKVGroup]", func() {
+			tc := fixture.GetTidbCluster(ns, "tc", utilimage.TiDBV4UpgradeVersion)
+			tc.Spec.PD.Replicas = 1
+			tc.Spec.TiKV.Replicas = 3
+			tc.Spec.TiDB.Replicas = 1
+			err := genericCli.Create(context.TODO(), tc)
+			framework.ExpectNoError(err)
+			err = oa.WaitForTidbClusterReady(tc, 30*time.Minute, 15*time.Second)
+			framework.ExpectNoError(err, "Expected TiDB cluster ready")
+
+			tg := fixture.GetTiKVGroup(ns, "tg", "tc", utilimage.TiDBV4UpgradeVersion)
+			tg.Spec.Replicas = 1
+			err = genericCli.Create(context.TODO(), tg)
+			framework.ExpectNoError(err)
+			err = crdUtil.WaitForTiKVGroupReady(tg, 30*time.Minute, 15*time.Second)
+			framework.ExpectNoError(err, "Expected TiKVGroup ready")
+			err = controller.GuaranteedUpdate(genericCli, tg, func() error {
+				tg.Spec.Replicas = 2
+				return nil
+			})
+			framework.ExpectNoError(err)
+			err = crdUtil.WaitForTiKVGroupReady(tg, 30*time.Minute, 15*time.Second)
+			framework.ExpectNoError(err)
+			err = controller.GuaranteedUpdate(genericCli, tg, func() error {
+				tg.Spec.Replicas = 1
+				return nil
+			})
+			framework.ExpectNoError(err, "Expected TiKVGroup ready")
+			err = crdUtil.WaitForTiKVGroupReady(tg, 30*time.Minute, 15*time.Second)
+			framework.ExpectNoError(err, "Expected TiKVGroup ready")
+			err = controller.GuaranteedUpdate(genericCli, tg, func() error {
+				tg.Spec.Replicas = 2
+				return nil
+			})
+			framework.ExpectNoError(err)
+			err = crdUtil.WaitForTiKVGroupReady(tg, 30*time.Minute, 15*time.Second)
+			framework.ExpectNoError(err)
+		})
+
+	})
+
 	ginkgo.Context("[Feature: Defaulting and Validating]", func() {
 		var ocfg *tests.OperatorConfig
 		var oa tests.OperatorActions
@@ -254,13 +344,13 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 					Name:      "created-by-helm",
 				},
 				Spec: v1alpha1.TidbClusterSpec{
-					TiDB: v1alpha1.TiDBSpec{
+					TiDB: &v1alpha1.TiDBSpec{
 						Replicas: 1,
 						ComponentSpec: v1alpha1.ComponentSpec{
 							Image: fmt.Sprintf("pingcap/tidb:%s", utilimage.TiDBV3Version),
 						},
 					},
-					TiKV: v1alpha1.TiKVSpec{
+					TiKV: &v1alpha1.TiKVSpec{
 						Replicas: 1,
 						ComponentSpec: v1alpha1.ComponentSpec{
 							Image: fmt.Sprintf("pingcap/tikv:%s", utilimage.TiDBV3Version),
@@ -271,7 +361,7 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 							},
 						},
 					},
-					PD: v1alpha1.PDSpec{
+					PD: &v1alpha1.PDSpec{
 						Replicas: 1,
 						ComponentSpec: v1alpha1.ComponentSpec{
 							Image: fmt.Sprintf("pingcap/pd:%s", utilimage.TiDBV3Version),
@@ -322,12 +412,12 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 					Name:      "newly-created",
 				},
 				Spec: v1alpha1.TidbClusterSpec{
-					TiDB: v1alpha1.TiDBSpec{
+					TiDB: &v1alpha1.TiDBSpec{
 						ComponentSpec: v1alpha1.ComponentSpec{
 							Image: fmt.Sprintf("pingcap/tidb:%s", utilimage.TiDBV3Version),
 						},
 					},
-					TiKV: v1alpha1.TiKVSpec{
+					TiKV: &v1alpha1.TiKVSpec{
 						ComponentSpec: v1alpha1.ComponentSpec{
 							Image: fmt.Sprintf("pingcap/tikv:%s", utilimage.TiDBV3Version),
 						},
@@ -337,7 +427,7 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 							},
 						},
 					},
-					PD: v1alpha1.PDSpec{
+					PD: &v1alpha1.PDSpec{
 						ComponentSpec: v1alpha1.ComponentSpec{
 							Image: fmt.Sprintf("pingcap/pd:%s", utilimage.TiDBV3Version),
 						},
@@ -361,10 +451,10 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 				},
 				Spec: v1alpha1.TidbClusterSpec{
 					Version: utilimage.TiDBV3Version,
-					TiDB: v1alpha1.TiDBSpec{
+					TiDB: &v1alpha1.TiDBSpec{
 						Replicas: 1,
 					},
-					TiKV: v1alpha1.TiKVSpec{
+					TiKV: &v1alpha1.TiKVSpec{
 						Replicas: 1,
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{
@@ -372,7 +462,7 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 							},
 						},
 					},
-					PD: v1alpha1.PDSpec{
+					PD: &v1alpha1.PDSpec{
 						Replicas: 1,
 						ResourceRequirements: v1.ResourceRequirements{
 							Requests: v1.ResourceList{
@@ -478,17 +568,20 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 				// The cpu requests of tikv is 100m, so the threshold value would be 60*0.1*3*0.8 = 14.4
 				// so we would set Value as "5" for each instance so that the sum in each auto-scaling calculating would be 15
 				Value:        "5.0",
+				QueryType:    "cpu",
 				InstancesPod: []string{"auto-scaling-tikv-0", "auto-scaling-tikv-1", "auto-scaling-tikv-2"},
 			}
 			err = mock.SetPrometheusResponse(monitor.Name, monitor.Namespace, mp, fw)
 			framework.ExpectNoError(err, "set tikv mock metrics error")
 
-			var defaultMetricSpec = autoscalingv2beta2.MetricSpec{
-				Type: autoscalingv2beta2.ResourceMetricSourceType,
-				Resource: &autoscalingv2beta2.ResourceMetricSource{
-					Name: corev1.ResourceCPU,
-					Target: autoscalingv2beta2.MetricTarget{
-						AverageUtilization: pointer.Int32Ptr(80),
+			var defaultMetricSpec = v1alpha1.CustomMetric{
+				MetricSpec: autoscalingv2beta2.MetricSpec{
+					Type: autoscalingv2beta2.ResourceMetricSourceType,
+					Resource: &autoscalingv2beta2.ResourceMetricSource{
+						Name: corev1.ResourceCPU,
+						Target: autoscalingv2beta2.MetricTarget{
+							AverageUtilization: pointer.Int32Ptr(80),
+						},
 					},
 				},
 			}
@@ -501,53 +594,45 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 					MetricsTimeDuration:    &duration,
 					ScaleInIntervalSeconds: pointer.Int32Ptr(100),
 				},
-				ReadyToScaleThresholdSeconds: pointer.Int32Ptr(40),
 			}
-			tac.Spec.TiKV.Metrics = []autoscalingv2beta2.MetricSpec{}
+			tac.Spec.TiKV.Metrics = []v1alpha1.CustomMetric{}
 			tac.Spec.TiKV.Metrics = append(tac.Spec.TiKV.Metrics, defaultMetricSpec)
 
 			_, err = cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Create(tac)
 			framework.ExpectNoError(err, "Create TidbMonitorClusterAutoScaler error")
-			pdClient, cancel, err := proxiedpdclient.NewProxiedPDClient(c, fw, ns, clusterName, false, nil)
-			framework.ExpectNoError(err, "create pdapi error")
-			defer cancel()
-			var firstScaleTimestamp int64
-			var readyToScaleTimestamp int64
-			err = wait.Poll(10*time.Second, 5*time.Minute, func() (done bool, err error) {
-				tac, err = cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Get(tac.Name, metav1.GetOptions{})
+
+			framework.Logf("start to check auto-scaler ref")
+			// check TidbCluster Status AutoScaler Ref
+			err = wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+				tc, err := cli.PingcapV1alpha1().TidbClusters(tc.Namespace).Get(tc.Name, metav1.GetOptions{})
 				if err != nil {
 					return false, nil
 				}
-				if tac.Annotations == nil || len(tac.Annotations) < 1 {
-					framework.Logf("tac haven't marked any annotation")
+				if tc.Status.AutoScaler == nil {
 					return false, nil
 				}
-				t, ok := tac.Annotations[label.AnnTiKVReadyToScaleTimestamp]
-				if !ok {
-					framework.Logf("tac has no tikv.tidb.pingcap.com/ready-to-scale-timestamp annotation")
-					return false, nil
-				}
-				readyToScaleTimestamp, err = strconv.ParseInt(t, 10, 64)
-				if err != nil {
-					return false, err
-				}
-				if tac.Status.TiKV.Phase != v1alpha1.ReadyToScaleOutAutoScalerPhase {
-					framework.Logf("tac dont' have the right ReadyToScale phase, expect: %s, got %s", v1alpha1.ReadyToScaleOutAutoScalerPhase, tac.Status.TiKV.Phase)
-					return false, nil
+				if tc.Status.AutoScaler.Name != tac.Name || tc.Status.AutoScaler.Namespace != tac.Namespace {
+					return false, fmt.Errorf("wrong tidbcluster auto-scaler ref[%s/%s]", tc.Status.AutoScaler.Namespace, tc.Status.AutoScaler.Name)
 				}
 				return true, nil
 			})
-			framework.ExpectNoError(err, "check tikv has ready-to-scale-timestamp")
-			framework.Logf("tikv has checked ready-to-scale-timestamp")
+			framework.ExpectNoError(err, "Check Auto-Scaler Ref failed")
 
-			err = wait.Poll(10*time.Second, 5*time.Minute, func() (done bool, err error) {
+			pdClient, cancel, err := proxiedpdclient.NewProxiedPDClient(c, fw, ns, clusterName, false)
+			framework.ExpectNoError(err, "create pdapi error")
+			defer cancel()
+			var firstScaleTimestamp int64
+
+			// check tikv scale out to 4 and annotations
+			err = wait.Poll(10*time.Second, 10*time.Minute, func() (done bool, err error) {
 				stac, err := cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Get(tac.Name, metav1.GetOptions{})
 				if err != nil {
 					return false, nil
 				}
 				if stac.Status.TiKV != nil && len(stac.Status.TiKV.MetricsStatusList) > 0 {
 					metrics := stac.Status.TiKV.MetricsStatusList[0]
-					framework.Logf("tikv threshold value: %v, currentValue: %v", metrics.ThresholdValue, metrics.CurrentValue)
+					framework.Logf("tikv threshold value: %v, currentValue: %v, recommended replicas: %v",
+						*metrics.ThresholdValue, *metrics.CurrentValue, stac.Status.TiKV.RecommendedReplicas)
 				}
 
 				tc, err := cli.PingcapV1alpha1().TidbClusters(tc.Namespace).Get(tc.Name, metav1.GetOptions{})
@@ -584,13 +669,6 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 				firstScaleTimestamp, err = strconv.ParseInt(v, 10, 64)
 				if err != nil {
 					return false, err
-				}
-				// check readyToScaleTimestamp
-				if time.Now().Sub(time.Unix(readyToScaleTimestamp, 0)).Seconds() < 40 {
-					return false, fmt.Errorf("tikv doesn't meet the ReadyToScale threshold")
-				}
-				if tac.Status.TiKV.Phase != v1alpha1.NormalAutoScalerPhase {
-					return false, fmt.Errorf("tikv don't have right ReadyToScale phase")
 				}
 				// check store label
 				storeId := ""
@@ -630,38 +708,13 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 				// The cpu requests of tikv is 100m, so the threshold value would be 60*0.1*4*0.8 = 19.2
 				// so we would set Value as "1" for each instance so that the sum in each auto-scaling calculating would be 4
 				Value:        "1.0",
+				QueryType:    "cpu",
 				InstancesPod: []string{"auto-scaling-tikv-0", "auto-scaling-tikv-1", "auto-scaling-tikv-2", "auto-scaling-tikv-3"},
 			}
 			err = mock.SetPrometheusResponse(monitor.Name, monitor.Namespace, mp, fw)
 			framework.ExpectNoError(err, "set tikv mock metrics error")
 
-			err = wait.Poll(10*time.Second, 5*time.Minute, func() (done bool, err error) {
-				tac, err = cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Get(tac.Name, metav1.GetOptions{})
-				if err != nil {
-					return false, nil
-				}
-				if tac.Annotations == nil || len(tac.Annotations) < 1 {
-					framework.Logf("tac haven't marked any annotation")
-					return false, nil
-				}
-				t, ok := tac.Annotations[label.AnnTiKVReadyToScaleTimestamp]
-				if !ok {
-					framework.Logf("tac has no tikv.tidb.pingcap.com/ready-to-scale-timestamp annotation")
-					return false, nil
-				}
-				readyToScaleTimestamp, err = strconv.ParseInt(t, 10, 64)
-				if err != nil {
-					return false, err
-				}
-				if tac.Status.TiKV.Phase != v1alpha1.ReadyToScaleInAutoScalerPhase {
-					framework.Logf("tac dont' have the right ReadyToScale phase, expect: %s, got %s", v1alpha1.ReadyToScaleOutAutoScalerPhase, tac.Status.TiKV.Phase)
-					return false, nil
-				}
-				return true, nil
-			})
-			framework.ExpectNoError(err, "check tikv has ready-to-scale-timestamp")
-			framework.Logf("check tikv has ready-to-scale-timestamp")
-
+			// check tikv scale-in to 3
 			err = wait.Poll(5*time.Second, 10*time.Minute, func() (done bool, err error) {
 				stac, err := cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Get(tac.Name, metav1.GetOptions{})
 				if err != nil {
@@ -669,7 +722,8 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 				}
 				if stac.Status.TiKV != nil && len(stac.Status.TiKV.MetricsStatusList) > 0 {
 					metrics := stac.Status.TiKV.MetricsStatusList[0]
-					framework.Logf("tikv threshold value: %v, currentValue: %v", metrics.ThresholdValue, metrics.CurrentValue)
+					framework.Logf("tikv threshold value: %v, currentValue: %v, recommended replicas: %v",
+						*metrics.ThresholdValue, *metrics.CurrentValue, stac.Status.TiKV.RecommendedReplicas)
 				}
 
 				tc, err = cli.PingcapV1alpha1().TidbClusters(tc.Namespace).Get(tc.Name, metav1.GetOptions{})
@@ -724,12 +778,6 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 				if secondTs-firstScaleTimestamp < 100 {
 					return false, fmt.Errorf("tikv second scale's interval isn't meeting the interval requirement")
 				}
-				if time.Now().Sub(time.Unix(readyToScaleTimestamp, 0)).Seconds() < 40 {
-					return false, fmt.Errorf("tikv doesn't meet the ReadyToScale threshold")
-				}
-				if tac.Status.TiKV.Phase != v1alpha1.NormalAutoScalerPhase {
-					return false, fmt.Errorf("tikv don't have right ReadyToScale phase")
-				}
 				return true, nil
 			})
 			framework.ExpectNoError(err, "check tikv auto-scale to 3 error")
@@ -742,6 +790,7 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 				// The cpu requests of tidb is 100m, so the threshold value would be 60*0.1*2*0.8 = 9.6
 				// so we would set Value as "5" for each instance so that the sum in each auto-scaling calculating would be 10
 				Value:        "5.0",
+				QueryType:    "cpu",
 				InstancesPod: []string{"auto-scaling-tidb-0", "auto-scaling-tidb-1"},
 			}
 			err = mock.SetPrometheusResponse(monitor.Name, monitor.Namespace, mp, fw)
@@ -759,19 +808,20 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 					ScaleInIntervalSeconds: pointer.Int32Ptr(100),
 				},
 			}
-			tac.Spec.TiDB.Metrics = []autoscalingv2beta2.MetricSpec{}
+			tac.Spec.TiDB.Metrics = []v1alpha1.CustomMetric{}
 			tac.Spec.TiDB.Metrics = append(tac.Spec.TiDB.Metrics, defaultMetricSpec)
 			_, err = cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Update(tac)
 			framework.ExpectNoError(err, "Update TidbMonitorClusterAutoScaler error")
 
-			err = wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+			err = wait.Poll(5*time.Second, 10*time.Minute, func() (done bool, err error) {
 				stac, err := cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Get(tac.Name, metav1.GetOptions{})
 				if err != nil {
 					return false, nil
 				}
 				if stac.Status.TiDB != nil && len(stac.Status.TiDB.MetricsStatusList) > 0 {
 					metrics := stac.Status.TiDB.MetricsStatusList[0]
-					framework.Logf("tidb threshold value: %v, currentValue: %v", metrics.ThresholdValue, metrics.CurrentValue)
+					framework.Logf("tidb threshold value: %v, currentValue: %v, recommended replicas: %v",
+						*metrics.ThresholdValue, *metrics.CurrentValue, stac.Status.TiDB.RecommendedReplicas)
 				}
 
 				tc, err = cli.PingcapV1alpha1().TidbClusters(tc.Namespace).Get(tc.Name, metav1.GetOptions{})
@@ -812,20 +862,22 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 				// The cpu requests of tidb is 100m, so the threshold value would be 60*0.1*2*0.8 = 9.6
 				// so we would set Value as "1" for each instance so that the sum in each auto-scaling calculating would be 3
 				Value:        "1.0",
+				QueryType:    "cpu",
 				InstancesPod: []string{"auto-scaling-tidb-0", "auto-scaling-tidb-1", "auto-scaling-tidb-2"},
 			}
 			err = mock.SetPrometheusResponse(monitor.Name, monitor.Namespace, mp, fw)
 			framework.ExpectNoError(err, "set tidb mock metrics error")
 
 			// Scale Tidb to 2 Replicas and Check
-			err = wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+			err = wait.Poll(5*time.Second, 10*time.Minute, func() (done bool, err error) {
 				stac, err := cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Get(tac.Name, metav1.GetOptions{})
 				if err != nil {
 					return false, nil
 				}
 				if stac.Status.TiDB != nil && len(stac.Status.TiDB.MetricsStatusList) > 0 {
 					metrics := stac.Status.TiDB.MetricsStatusList[0]
-					framework.Logf("tidb threshold value: %v, currentValue: %v", metrics.ThresholdValue, metrics.CurrentValue)
+					framework.Logf("tidb threshold value: %v, currentValue: %v, recommended replicas: %v",
+						*metrics.ThresholdValue, *metrics.CurrentValue, stac.Status.TiDB.RecommendedReplicas)
 				}
 
 				tc, err = cli.PingcapV1alpha1().TidbClusters(tc.Namespace).Get(tc.Name, metav1.GetOptions{})
@@ -864,6 +916,116 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 			})
 			framework.ExpectNoError(err, "check tidb auto-scale to 2 error")
 			framework.Logf("success to check auto scale-in tidb to 2 replicas")
+
+			// Check Storage Auto-Scaling
+			framework.Logf("start to check tikv storage auto-scaling")
+			mp = &mock.MonitorParams{
+				Name: tc.Name,
+				// The mock capacity size for the tikv storage
+				Value:       fmt.Sprintf("%v", 1024*1024*1024),
+				QueryType:   "storage",
+				StorageType: "capacity",
+			}
+			err = mock.SetPrometheusResponse(monitor.Name, monitor.Namespace, mp, fw)
+			framework.ExpectNoError(err, "set tikv capacity storage size error")
+
+			mp = &mock.MonitorParams{
+				Name: tc.Name,
+				// The mock capacity size for the tikv storage
+				Value:       fmt.Sprintf("%v", 1024*1024),
+				QueryType:   "storage",
+				StorageType: "available",
+			}
+			err = mock.SetPrometheusResponse(monitor.Name, monitor.Namespace, mp, fw)
+			framework.ExpectNoError(err, "set tikv available storage size error")
+
+			tac, err = cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Get(tac.Name, metav1.GetOptions{})
+			framework.ExpectNoError(err, "Get TidbCluster AutoScaler err")
+			tac.Spec.TiKV = &v1alpha1.TikvAutoScalerSpec{
+				BasicAutoScalerSpec: v1alpha1.BasicAutoScalerSpec{
+					MaxReplicas: int32(4),
+					Metrics: []v1alpha1.CustomMetric{
+						{
+							MetricSpec: autoscalingv2beta2.MetricSpec{
+								Type: autoscalingv2beta2.ResourceMetricSourceType,
+								Resource: &autoscalingv2beta2.ResourceMetricSource{
+									Name: corev1.ResourceStorage,
+								},
+							},
+							LeastStoragePressurePeriodSeconds:  pointer.Int64Ptr(30),
+							LeastRemainAvailableStoragePercent: pointer.Int64Ptr(90),
+						},
+					},
+				},
+			}
+			tac.Spec.TiDB = nil
+			tac.Status.TiKV = nil
+			tac.Status.TiDB = nil
+			tacCopy := tac.DeepCopy()
+			err = controller.GuaranteedUpdate(genericCli, tac, func() error {
+				tac.Spec = tacCopy.Spec
+				tac.Status = tacCopy.Status
+				return nil
+			})
+			framework.ExpectNoError(err, "Update TidbMonitorClusterAutoScaler error")
+
+			// check tikv scale-out to 4
+			err = wait.Poll(5*time.Second, 10*time.Minute, func() (done bool, err error) {
+				stac, err := cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Get(tac.Name, metav1.GetOptions{})
+				if err != nil {
+					return false, nil
+				}
+				if stac.Status.TiKV != nil && len(stac.Status.TiKV.MetricsStatusList) > 0 {
+					metrics := stac.Status.TiKV.MetricsStatusList[0]
+					framework.Logf("tikv AvailableStorage:%v, BaselineAvailableStorage:%v, CapacityStorage:%v, StoragePressure:%v",
+						*metrics.AvailableStorage, *metrics.BaselineAvailableStorage, *metrics.CapacityStorage, *metrics.StoragePressure)
+				}
+
+				tc, err = cli.PingcapV1alpha1().TidbClusters(tc.Namespace).Get(tc.Name, metav1.GetOptions{})
+				if err != nil {
+					return false, nil
+				}
+				if tc.Spec.TiKV.Replicas != 4 {
+					framework.Logf("tikv haven't auto-scale to 4 replicas")
+					return false, nil
+				}
+				if len(tc.Status.TiKV.Stores) != 4 {
+					framework.Logf("tikv's store haven't auto-scale to 4")
+					return false, nil
+				}
+				tac, err = cli.PingcapV1alpha1().TidbClusterAutoScalers(ns).Get(tac.Name, metav1.GetOptions{})
+				if err != nil {
+					return false, nil
+				}
+				if tac.Annotations == nil || len(tac.Annotations) < 1 {
+					framework.Logf("tac haven't marked any annotation")
+					return false, nil
+				}
+				_, ok := tac.Annotations[label.AnnTiKVLastAutoScalingTimestamp]
+				if !ok {
+					framework.Logf("tac has no tikv.tidb.pingcap.com/last-autoscaling-timestamp annotation")
+					return false, nil
+				}
+				return true, nil
+			})
+			framework.ExpectNoError(err, "check tikv auto-scale to 4 error")
+			framework.Logf("success to check tikv auto scale-in to 4 replicas")
+
+			// Clean scaler
+			err = cli.PingcapV1alpha1().TidbClusterAutoScalers(tac.Namespace).Delete(tac.Name, &metav1.DeleteOptions{})
+			framework.ExpectNoError(err, "Expect to delete auto-scaler ref")
+			err = wait.Poll(5*time.Second, 5*time.Minute, func() (done bool, err error) {
+				tc, err := cli.PingcapV1alpha1().TidbClusters(tc.Namespace).Get(tc.Name, metav1.GetOptions{})
+				if err != nil {
+					return false, nil
+				}
+				if tc.Status.AutoScaler != nil {
+					return false, nil
+				}
+				return true, nil
+			})
+			framework.ExpectNoError(err, "expect auto-scaler ref empty after delete auto-scaler")
+			framework.Logf("clean scaler mark success")
 		})
 	})
 
@@ -1001,6 +1163,7 @@ var _ = ginkgo.Describe("[tidb-operator][Serial]", func() {
 		})
 
 		ginkgo.It("basic deployment", func() {
+			framework.Skipf("duplicated test")
 			tcName := "basic"
 			cluster := newTidbClusterConfig(e2econfig.TestConfig, ns, tcName, "", utilimage.TiDBV3Version)
 			cluster.Resources["pd.replicas"] = "1"

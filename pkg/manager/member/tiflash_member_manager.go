@@ -35,12 +35,10 @@ import (
 	v1 "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/klog"
+	"k8s.io/utils/pointer"
 )
 
 const (
-	// tiflashClusterCertPath is where the cert for inter-cluster communication stored (if any)
-	tiflashClusterCertPath = "/var/lib/tiflash-tls"
-
 	//find a better way to manage store only managed by tiflash in Operator
 	tiflashStoreLimitPattern = `%s-tiflash-\d+\.%s-tiflash-peer\.%s\.svc\:\d+`
 )
@@ -156,7 +154,7 @@ func (tfmm *tiflashMemberManager) syncHeadlessService(tc *v1alpha1.TidbCluster) 
 		return tfmm.svcControl.CreateService(tc, newSvc)
 	}
 	if err != nil {
-		return err
+		return fmt.Errorf("syncHeadlessService: failed to get svc %s for cluster %s/%s, error: %s", controller.TiFlashPeerMemberName(tcName), ns, tcName, err)
 	}
 
 	oldSvc := oldSvcTmp.DeepCopy()
@@ -185,7 +183,7 @@ func (tfmm *tiflashMemberManager) syncStatefulSet(tc *v1alpha1.TidbCluster) erro
 
 	oldSetTmp, err := tfmm.setLister.StatefulSets(ns).Get(controller.TiFlashMemberName(tcName))
 	if err != nil && !errors.IsNotFound(err) {
-		return err
+		return fmt.Errorf("syncStatefulSet: fail to get sts %s for cluster %s/%s, error: %s", controller.TiFlashMemberName(tcName), ns, tcName, err)
 	}
 	setNotExist := errors.IsNotFound(err)
 
@@ -528,7 +526,7 @@ func getNewStatefulSet(tc *v1alpha1.TidbCluster, cm *corev1.ConfigMap) (*apps.St
 			OwnerReferences: []metav1.OwnerReference{controller.GetOwnerRef(tc)},
 		},
 		Spec: apps.StatefulSetSpec{
-			Replicas: controller.Int32Ptr(tc.TiFlashStsDesiredReplicas()),
+			Replicas: pointer.Int32Ptr(tc.TiFlashStsDesiredReplicas()),
 			Selector: tiflashLabel.LabelSelector(),
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -573,6 +571,19 @@ func getTiFlashConfigMap(tc *v1alpha1.TidbCluster) (*corev1.ConfigMap, error) {
 	config := tc.Spec.TiFlash.Config.DeepCopy()
 	if config == nil {
 		config = &v1alpha1.TiFlashConfig{}
+	}
+	var paths []string
+	for k := range tc.Spec.TiFlash.StorageClaims {
+		paths = append(paths, fmt.Sprintf("/data%d/db", k))
+	}
+	if len(paths) > 0 {
+		dataPath := strings.Join(paths, ",")
+		if config.CommonConfig == nil {
+			config.CommonConfig = &v1alpha1.CommonConfig{}
+		}
+		if config.CommonConfig.FlashDataPath == nil {
+			config.CommonConfig.FlashDataPath = pointer.StringPtr(dataPath)
+		}
 	}
 	setTiFlashConfigDefault(config, tc.Name, tc.Namespace)
 
@@ -769,7 +780,7 @@ func (tfmm *tiflashMemberManager) setStoreLabelsForTiFlash(tc *v1alpha1.TidbClus
 
 		pod, err := tfmm.podLister.Pods(ns).Get(podName)
 		if err != nil {
-			return setCount, err
+			return setCount, fmt.Errorf("setStoreLabelsForTiFlash: failed to get pods %s for store %s, error: %v", podName, status.ID, err)
 		}
 
 		nodeName := pod.Spec.NodeName
@@ -844,7 +855,7 @@ func tiflashStatefulSetIsUpgrading(podLister corelisters.PodLister, pdControl pd
 	}
 	tiflashPods, err := podLister.Pods(tc.GetNamespace()).List(selector)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("tiflashStatefulSetIsUpgrading: failed to list pods for cluster %s/%s, selector %s, error: %v", tc.GetNamespace(), instanceName, selector, err)
 	}
 	for _, pod := range tiflashPods {
 		revisionHash, exist := pod.Labels[apps.ControllerRevisionHashLabelKey]

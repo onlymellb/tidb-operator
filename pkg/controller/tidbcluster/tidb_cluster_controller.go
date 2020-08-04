@@ -92,6 +92,8 @@ func NewController(
 	podInformer := kubeInformerFactory.Core().V1().Pods()
 	nodeInformer := kubeInformerFactory.Core().V1().Nodes()
 	secretInformer := kubeInformerFactory.Core().V1().Secrets()
+	scalerInformer := informerFactory.Pingcap().V1alpha1().TidbClusterAutoScalers()
+	tikvGroupInformer := informerFactory.Pingcap().V1alpha1().TiKVGroups()
 
 	tcControl := controller.NewRealTidbClusterControl(cli, tcInformer.Lister(), recorder)
 	pdControl := pdapi.NewDefaultPDControl(kubeCli)
@@ -227,7 +229,7 @@ func NewController(
 				setControl,
 			),
 			mm.NewTidbDiscoveryManager(typedControl),
-			mm.NewTidbClusterStatusManager(kubeCli, cli),
+			mm.NewTidbClusterStatusManager(kubeCli, cli, scalerInformer.Lister(), tikvGroupInformer.Lister()),
 			podRestarter,
 			&tidbClusterConditionUpdater{},
 			recorder,
@@ -279,7 +281,6 @@ func (tcc *Controller) Run(workers int, stopCh <-chan struct{}) {
 // worker runs a worker goroutine that invokes processNextWorkItem until the the controller's queue is closed
 func (tcc *Controller) worker() {
 	for tcc.processNextWorkItem() {
-		// revive:disable:empty-block
 	}
 }
 
@@ -359,7 +360,7 @@ func (tcc *Controller) addStatefulSet(obj interface{}) {
 	if tc == nil {
 		return
 	}
-	klog.V(4).Infof("StatefuSet %s/%s created, TidbCluster: %s/%s", ns, setName, ns, tc.Name)
+	klog.V(4).Infof("StatefulSet %s/%s created, TidbCluster: %s/%s", ns, setName, ns, tc.Name)
 	tcc.enqueueTidbCluster(tc)
 }
 
@@ -380,7 +381,7 @@ func (tcc *Controller) updateStatefuSet(old, cur interface{}) {
 	if tc == nil {
 		return
 	}
-	klog.V(4).Infof("StatefulSet %s/%s updated, %+v -> %+v.", ns, setName, oldSet.Spec, curSet.Spec)
+	klog.V(4).Infof("StatefulSet %s/%s updated, TidbCluster: %s/%s", ns, setName, ns, tc.Name)
 	tcc.enqueueTidbCluster(tc)
 }
 
