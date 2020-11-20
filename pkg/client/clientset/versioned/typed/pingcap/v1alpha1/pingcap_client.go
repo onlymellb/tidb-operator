@@ -25,10 +25,9 @@ type PingcapV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	BackupsGetter
 	BackupSchedulesGetter
+	DMClustersGetter
 	DataResourcesGetter
 	RestoresGetter
-	TiDBGroupsGetter
-	TiKVGroupsGetter
 	TidbClustersGetter
 	TidbClusterAutoScalersGetter
 	TidbInitializersGetter
@@ -48,20 +47,16 @@ func (c *PingcapV1alpha1Client) BackupSchedules(namespace string) BackupSchedule
 	return newBackupSchedules(c, namespace)
 }
 
+func (c *PingcapV1alpha1Client) DMClusters(namespace string) DMClusterInterface {
+	return newDMClusters(c, namespace)
+}
+
 func (c *PingcapV1alpha1Client) DataResources(namespace string) DataResourceInterface {
 	return newDataResources(c, namespace)
 }
 
 func (c *PingcapV1alpha1Client) Restores(namespace string) RestoreInterface {
 	return newRestores(c, namespace)
-}
-
-func (c *PingcapV1alpha1Client) TiDBGroups(namespace string) TiDBGroupInterface {
-	return newTiDBGroups(c, namespace)
-}
-
-func (c *PingcapV1alpha1Client) TiKVGroups(namespace string) TiKVGroupInterface {
-	return newTiKVGroups(c, namespace)
 }
 
 func (c *PingcapV1alpha1Client) TidbClusters(namespace string) TidbClusterInterface {

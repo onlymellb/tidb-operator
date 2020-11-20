@@ -1,12 +1,11 @@
 run:
-  timeout: 5m
+  timeout: 10m
 
 linters:
   enable:
-    - goimports
-  disable:
-    # Enable once related errors are fixed or ignored explicitly 
-    - staticcheck
-    - gosimple
     - structcheck
+    - goimports
+    - gosimple
+    - staticcheck
+  disable:
     - errcheck

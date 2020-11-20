@@ -20,6 +20,9 @@ import (
 	"strconv"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/klog"
+
 	"github.com/pingcap/advanced-statefulset/client/apis/apps/v1/helper"
 	"github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1"
 	"github.com/pingcap/tidb-operator/pkg/features"
@@ -27,13 +30,16 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var (
 	ClusterClientTLSPath = "/var/lib/cluster-client-tls"
 	TiDBClientTLSPath    = "/var/lib/tidb-client-tls"
+	BRBinPath            = "/var/lib/br-bin"
 	ClusterClientVolName = "cluster-client-tls"
 )
 
@@ -152,9 +158,6 @@ func GetAutoScalingOutSlots(tc *v1alpha1.TidbCluster, memberType v1alpha1.Member
 	default:
 		return s
 	}
-	if tc.Annotations == nil {
-		return s
-	}
 	v, existed := tc.Annotations[l]
 	if !existed {
 		return s
@@ -218,6 +221,27 @@ func AppendEnv(a []corev1.EnvVar, b []corev1.EnvVar) []corev1.EnvVar {
 	return a
 }
 
+// AppendOverwriteEnv appends envs b into a and overwrites the envs whose names already exist
+// in b.
+// Note that this will not change relative order of envs.
+func AppendOverwriteEnv(a []corev1.EnvVar, b []corev1.EnvVar) []corev1.EnvVar {
+	for _, valNew := range b {
+		matched := false
+		for j, valOld := range a {
+			// It's possible there are multiple instances of the same variable in this array,
+			// so we just overwrite all of them rather than trying to resolve dupes here.
+			if valNew.Name == valOld.Name {
+				a[j] = valNew
+				matched = true
+			}
+		}
+		if !matched {
+			a = append(a, valNew)
+		}
+	}
+	return a
+}
+
 // IsOwnedByTidbCluster checks if the given object is owned by TidbCluster.
 // Schema Kind and Group are checked, Version is ignored.
 func IsOwnedByTidbCluster(obj metav1.Object) (bool, *metav1.OwnerReference) {
@@ -268,4 +292,56 @@ func AppendEnvIfPresent(envs []corev1.EnvVar, name string) []corev1.EnvVar {
 		})
 	}
 	return envs
+}
+
+// MustNewRequirement calls NewRequirement and panics on failure.
+func MustNewRequirement(key string, op selection.Operator, vals []string) *labels.Requirement {
+	r, err := labels.NewRequirement(key, op, vals)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
+func BuildAdditionalVolumeAndVolumeMount(storageVolumes []v1alpha1.StorageVolume, storageClassName *string, memberType v1alpha1.MemberType) ([]corev1.VolumeMount, []corev1.PersistentVolumeClaim) {
+	var volMounts []corev1.VolumeMount
+	var volumeClaims []corev1.PersistentVolumeClaim
+	if len(storageVolumes) > 0 {
+		for _, storageVolume := range storageVolumes {
+			var tmpStorageClass *string
+			quantity, err := resource.ParseQuantity(storageVolume.StorageSize)
+			if err != nil {
+				klog.Errorf("Cannot parse storage size %v in StorageVolumes of %v, storageVolume Name %s, error: %v", storageVolume.StorageSize, memberType, storageVolume.Name, err)
+				continue
+			}
+			storageRequest := corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceStorage: quantity,
+				},
+			}
+			if storageVolume.StorageClassName != nil && len(*storageVolume.StorageClassName) > 0 {
+				tmpStorageClass = storageVolume.StorageClassName
+			} else {
+				tmpStorageClass = storageClassName
+			}
+			volumeClaims = append(volumeClaims, VolumeClaimTemplate(storageRequest, fmt.Sprintf("%s-%s", memberType.String(), storageVolume.Name), tmpStorageClass))
+			volMounts = append(volMounts, corev1.VolumeMount{
+				Name: fmt.Sprintf("%s-%s", memberType.String(), storageVolume.Name), MountPath: storageVolume.MountPath,
+			})
+		}
+	}
+	return volMounts, volumeClaims
+}
+
+func VolumeClaimTemplate(r corev1.ResourceRequirements, metaName string, storageClassName *string) corev1.PersistentVolumeClaim {
+	return corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{Name: metaName},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: []corev1.PersistentVolumeAccessMode{
+				corev1.ReadWriteOnce,
+			},
+			StorageClassName: storageClassName,
+			Resources:        r,
+		},
+	}
 }

@@ -161,70 +161,107 @@ func GetOptionValueFromEnv(option, envPrefix string) string {
 // ConstructBRGlobalOptionsForBackup constructs BR global options for backup and also return the remote path.
 func ConstructBRGlobalOptionsForBackup(backup *v1alpha1.Backup) ([]string, error) {
 	var args []string
-	config := backup.Spec.BR
-	if config == nil {
+	config := backup.Spec
+	if config.BR == nil {
 		return nil, fmt.Errorf("no config for br in backup %s/%s", backup.Namespace, backup.Name)
 	}
-	args = append(args, constructBRGlobalOptions(config)...)
+	args = append(args, constructBRGlobalOptions(config.BR)...)
 	storageArgs, err := getRemoteStorage(backup.Spec.StorageProvider)
 	if err != nil {
 		return nil, err
 	}
 	args = append(args, storageArgs...)
-	if (backup.Spec.Type == v1alpha1.BackupTypeDB || backup.Spec.Type == v1alpha1.BackupTypeTable) && config.DB != "" {
-		args = append(args, fmt.Sprintf("--db=%s", config.DB))
+
+	if config.TableFilter != nil && len(config.TableFilter) > 0 {
+		for _, tableFilter := range config.TableFilter {
+			args = append(args, "--filter", tableFilter)
+		}
+		return args, nil
 	}
-	if backup.Spec.Type == v1alpha1.BackupTypeTable && config.Table != "" {
-		args = append(args, fmt.Sprintf("--table=%s", config.Table))
+
+	switch backup.Spec.Type {
+	case v1alpha1.BackupTypeTable:
+		if config.BR.Table != "" {
+			args = append(args, fmt.Sprintf("--table=%s", config.BR.Table))
+		}
+		if config.BR.DB != "" {
+			args = append(args, fmt.Sprintf("--db=%s", config.BR.DB))
+		}
+	case v1alpha1.BackupTypeDB:
+		if config.BR.DB != "" {
+			args = append(args, fmt.Sprintf("--db=%s", config.BR.DB))
+		}
 	}
+
 	return args, nil
 }
 
 // ConstructDumplingOptionsForBackup constructs dumpling options for backup
 func ConstructDumplingOptionsForBackup(backup *v1alpha1.Backup) []string {
 	var args []string
-	config := backup.Spec.Dumpling
-	if config == nil {
-		args = append(args, defaultOptions...)
-		args = append(args, defaultTableFilterOptions...)
-		return args
-	}
+	config := backup.Spec
 
-	if len(config.Options) != 0 {
-		args = append(args, config.Options...)
-	} else {
-		args = append(args, defaultOptions...)
-	}
-
-	if len(config.TableFilter) > 0 {
+	if config.TableFilter != nil && len(config.TableFilter) > 0 {
 		for _, tableFilter := range config.TableFilter {
+			args = append(args, "--filter", tableFilter)
+		}
+	} else if config.Dumpling != nil && config.Dumpling.TableFilter != nil && len(config.Dumpling.TableFilter) > 0 {
+		for _, tableFilter := range config.Dumpling.TableFilter {
 			args = append(args, "--filter", tableFilter)
 		}
 	} else {
 		args = append(args, defaultTableFilterOptions...)
 	}
+
+	if config.Dumpling == nil {
+		args = append(args, defaultOptions...)
+		return args
+	}
+
+	if len(config.Dumpling.Options) != 0 {
+		args = append(args, config.Dumpling.Options...)
+	} else {
+		args = append(args, defaultOptions...)
+	}
+
 	return args
 }
 
 // ConstructBRGlobalOptionsForRestore constructs BR global options for restore.
 func ConstructBRGlobalOptionsForRestore(restore *v1alpha1.Restore) ([]string, error) {
 	var args []string
-	config := restore.Spec.BR
-	if config == nil {
+	config := restore.Spec
+	if config.BR == nil {
 		return nil, fmt.Errorf("no config for br in restore %s/%s", restore.Namespace, restore.Name)
 	}
-	args = append(args, constructBRGlobalOptions(config)...)
+	args = append(args, constructBRGlobalOptions(config.BR)...)
 	storageArgs, err := getRemoteStorage(restore.Spec.StorageProvider)
 	if err != nil {
 		return nil, err
 	}
 	args = append(args, storageArgs...)
-	if (restore.Spec.Type == v1alpha1.BackupTypeDB || restore.Spec.Type == v1alpha1.BackupTypeTable) && config.DB != "" {
-		args = append(args, fmt.Sprintf("--db=%s", config.DB))
+
+	if config.TableFilter != nil && len(config.TableFilter) > 0 {
+		for _, tableFilter := range config.TableFilter {
+			args = append(args, "--filter", tableFilter)
+		}
+		return args, nil
 	}
-	if restore.Spec.Type == v1alpha1.BackupTypeTable && config.Table != "" {
-		args = append(args, fmt.Sprintf("--table=%s", config.Table))
+
+	switch restore.Spec.Type {
+	case v1alpha1.BackupTypeTable:
+		if config.BR.Table != "" {
+			args = append(args, fmt.Sprintf("--table=%s", config.BR.Table))
+		}
+		if config.BR.DB != "" {
+			args = append(args, fmt.Sprintf("--db=%s", config.BR.DB))
+		}
+	case v1alpha1.BackupTypeDB:
+		if config.BR.DB != "" {
+			args = append(args, fmt.Sprintf("--db=%s", config.BR.DB))
+		}
 	}
+
 	return args, nil
 }
 
@@ -310,31 +347,48 @@ func GetCommitTsFromMetadata(backupPath string) (string, error) {
 	return commitTs, nil
 }
 
-// GetCommitTsFromBRMetaData get backup position from `EndVersion` in BR backup meta
-func GetCommitTsFromBRMetaData(provider v1alpha1.StorageProvider) (uint64, error) {
-	var commitTs uint64
+// GetBRArchiveSize returns the total size of the backup archive.
+func GetBRArchiveSize(meta *kvbackup.BackupMeta) uint64 {
+	total := uint64(meta.Size())
+	for _, file := range meta.Files {
+		total += file.Size_
+	}
+	return total
+}
+
+// GetBRMetaData get backup metadata from cloud storage
+func GetBRMetaData(provider v1alpha1.StorageProvider) (*kvbackup.BackupMeta, error) {
 	s, err := NewRemoteStorage(provider)
 	if err != nil {
-		return commitTs, err
+		return nil, err
 	}
 	defer s.Close()
 	ctx := context.Background()
 	exist, err := s.Exists(ctx, constants.MetaFile)
 	if err != nil {
-		return commitTs, err
+		return nil, err
 	}
 	if !exist {
-		return commitTs, fmt.Errorf("%s not exist", constants.MetaFile)
+		return nil, fmt.Errorf("%s not exist", constants.MetaFile)
 
 	}
 	metaData, err := s.ReadAll(ctx, constants.MetaFile)
 	if err != nil {
-		return commitTs, err
+		return nil, err
 	}
 	backupMeta := &kvbackup.BackupMeta{}
 	err = proto.Unmarshal(metaData, backupMeta)
 	if err != nil {
-		return commitTs, err
+		return nil, err
+	}
+	return backupMeta, nil
+}
+
+// GetCommitTsFromBRMetaData get backup position from `EndVersion` in BR backup meta
+func GetCommitTsFromBRMetaData(provider v1alpha1.StorageProvider) (uint64, error) {
+	backupMeta, err := GetBRMetaData(provider)
+	if err != nil {
+		return 0, err
 	}
 	return backupMeta.EndVersion, nil
 }

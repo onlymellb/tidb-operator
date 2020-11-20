@@ -54,14 +54,12 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Pingcap().V1alpha1().Backups().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("backupschedules"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Pingcap().V1alpha1().BackupSchedules().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("dmclusters"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Pingcap().V1alpha1().DMClusters().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("dataresources"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Pingcap().V1alpha1().DataResources().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("restores"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Pingcap().V1alpha1().Restores().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("tidbgroups"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Pingcap().V1alpha1().TiDBGroups().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("tikvgroups"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Pingcap().V1alpha1().TiKVGroups().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("tidbclusters"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Pingcap().V1alpha1().TidbClusters().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("tidbclusterautoscalers"):

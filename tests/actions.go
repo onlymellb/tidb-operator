@@ -426,7 +426,7 @@ func (oi *OperatorConfig) OperatorHelmSetBoolean() string {
 	for k, v := range set {
 		arr = append(arr, fmt.Sprintf("--set %s=%v", k, v))
 	}
-	return fmt.Sprintf("%s", strings.Join(arr, " "))
+	return strings.Join(arr, " ")
 }
 
 func (oi *OperatorConfig) OperatorHelmSetString(m map[string]string) string {
@@ -1430,6 +1430,9 @@ func getStsContainer(kubeCli kubernetes.Interface, sts *apps.StatefulSet, contai
 }
 
 func (oa *operatorActions) pdMembersReadyFn(tc *v1alpha1.TidbCluster) (bool, error) {
+	if tc.Spec.PD == nil {
+		return true, nil
+	}
 	tcName := tc.GetName()
 	ns := tc.GetNamespace()
 	pdSetName := controller.PDMemberName(tcName)
@@ -1511,6 +1514,9 @@ func (oa *operatorActions) pdMembersReadyFn(tc *v1alpha1.TidbCluster) (bool, err
 }
 
 func (oa *operatorActions) tikvMembersReadyFn(tc *v1alpha1.TidbCluster) (bool, error) {
+	if tc.Spec.TiKV == nil {
+		return true, nil
+	}
 	tcName := tc.GetName()
 	ns := tc.GetNamespace()
 	tikvSetName := controller.TiKVMemberName(tcName)
@@ -1592,7 +1598,7 @@ func (oa *operatorActions) tiflashMembersReadyFn(tc *v1alpha1.TidbCluster) (bool
 
 	tiflashSet, err := oa.tcStsGetter.StatefulSets(ns).Get(tiflashSetName, metav1.GetOptions{})
 	if err != nil {
-		klog.Errorf("failed to get statefulset: %s/%s, %v", ns, tiflashSetName, err)
+		klog.Errorf("TiFlash failed to get statefulset: %s/%s, %v", ns, tiflashSetName, err)
 		return false, nil
 	}
 
@@ -1611,12 +1617,12 @@ func (oa *operatorActions) tiflashMembersReadyFn(tc *v1alpha1.TidbCluster) (bool
 	failureCount := len(tc.Status.TiFlash.FailureStores)
 	replicas := tc.Spec.TiFlash.Replicas + int32(failureCount)
 	if *tiflashSet.Spec.Replicas != replicas {
-		klog.Infof("statefulset: %s/%s .spec.Replicas(%d) != %d",
+		klog.Infof("TiFlash statefulset: %s/%s .spec.Replicas(%d) != %d",
 			ns, tiflashSetName, *tiflashSet.Spec.Replicas, replicas)
 		return false, nil
 	}
 	if tiflashSet.Status.ReadyReplicas != replicas {
-		klog.Infof("statefulset: %s/%s .status.ReadyReplicas(%d) != %d",
+		klog.Infof("TiFlash statefulset: %s/%s .status.ReadyReplicas(%d) != %d",
 			ns, tiflashSetName, tiflashSet.Status.ReadyReplicas, replicas)
 		return false, nil
 	}
@@ -1646,7 +1652,7 @@ func (oa *operatorActions) tiflashMembersReadyFn(tc *v1alpha1.TidbCluster) (bool
 
 	for _, store := range tc.Status.TiFlash.Stores {
 		if store.State != v1alpha1.TiKVStateUp {
-			klog.Infof("tidbcluster: %s/%s's store(%s) state != %s", ns, tcName, store.ID, v1alpha1.TiKVStateUp)
+			klog.Infof("TiFlash tidbcluster: %s/%s's store(%s) state != %s", ns, tcName, store.ID, v1alpha1.TiKVStateUp)
 			return false, nil
 		}
 	}
@@ -1656,11 +1662,14 @@ func (oa *operatorActions) tiflashMembersReadyFn(tc *v1alpha1.TidbCluster) (bool
 		klog.Errorf("failed to get peer service: %s/%s", ns, tiflashPeerServiceName)
 		return false, nil
 	}
-
+	klog.Infof("TiFlash ready: %s/%s", ns, tcName)
 	return true, nil
 }
 
 func (oa *operatorActions) tidbMembersReadyFn(tc *v1alpha1.TidbCluster) (bool, error) {
+	if tc.Spec.TiDB == nil {
+		return true, nil
+	}
 	tcName := tc.GetName()
 	ns := tc.GetNamespace()
 	tidbSetName := controller.TiDBMemberName(tcName)
@@ -2600,18 +2609,12 @@ func (oa *operatorActions) DataIsTheSameAs(tc, otherInfo *TidbClusterConfig) (bo
 
 	getCntFn := func(db *sql.DB, tableName string) (int, error) {
 		var cnt int
-		rows, err := db.Query(fmt.Sprintf("SELECT count(*) FROM %s", tableName))
+		row := db.QueryRow(fmt.Sprintf("SELECT count(*) FROM %s", tableName))
+		err := row.Scan(&cnt)
 		if err != nil {
-			return cnt, fmt.Errorf("failed to select count(*) from %s, %v", tableName, err)
+			return cnt, fmt.Errorf("failed to scan count from %s, %v", tableName, err)
 		}
-		for rows.Next() {
-			err := rows.Scan(&cnt)
-			if err != nil {
-				return cnt, fmt.Errorf("failed to scan count from %s, %v", tableName, err)
-			}
-			return cnt, nil
-		}
-		return cnt, fmt.Errorf("can not find count of table %s", tableName)
+		return cnt, nil
 	}
 
 	for i := 0; i < tableNum; i++ {
@@ -2690,7 +2693,7 @@ func (oa *operatorActions) DeployScheduledBackup(info *TidbClusterConfig) error 
 	oa.EmitEvent(info, "DeploySchedulerBackup")
 	klog.Infof("begin to deploy scheduled backup")
 
-	cron := fmt.Sprintf("'*/1 * * * *'")
+	cron := "'*/1 * * * *'"
 	sets := map[string]string{
 		"clusterName":                info.ClusterName,
 		"scheduledBackup.create":     "true",
@@ -3598,8 +3601,10 @@ func (oa *operatorActions) WaitForTidbClusterReady(tc *v1alpha1.TidbCluster, tim
 		}
 		if tc.Spec.TiFlash != nil {
 			if b, err := oa.tiflashMembersReadyFn(local); !b && err == nil {
+				klog.Errorf("tiflash  members not ready: %s/%s, %v", tc.Namespace, tc.Name, err)
 				return false, nil
 			}
+			klog.Infof("tiflash  members ready: %s/%s, %v", tc.Namespace, tc.Name, err)
 		}
 		if tc.Spec.Pump != nil {
 			if b, err := oa.pumpMembersReadyFn(local); !b && err == nil {

@@ -14,11 +14,9 @@ Resource Types:
 </li><li>
 <a href="#backupschedule">BackupSchedule</a>
 </li><li>
+<a href="#dmcluster">DMCluster</a>
+</li><li>
 <a href="#restore">Restore</a>
-</li><li>
-<a href="#tidbgroup">TiDBGroup</a>
-</li><li>
-<a href="#tikvgroup">TiKVGroup</a>
 </li><li>
 <a href="#tidbcluster">TidbCluster</a>
 </li><li>
@@ -217,6 +215,18 @@ DumplingConfig
 </tr>
 <tr>
 <td>
+<code>toolImage</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ToolImage specifies the tool image used in the backup/restore, only BR image is supported for now</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>imagePullSecrets</code></br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
@@ -227,6 +237,17 @@ DumplingConfig
 <td>
 <em>(Optional)</em>
 <p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tableFilter</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>TableFilter means Table filter expression for &lsquo;db.table&rsquo; matching. BR supports this from v4.0.3.</p>
 </td>
 </tr>
 <tr>
@@ -382,7 +403,9 @@ int32
 </td>
 <td>
 <p>MaxBackups is to specify how many backups we want to keep
-0 is magic number to indicate un-limited backups.</p>
+0 is magic number to indicate un-limited backups.
+if MaxBackups and MaxReservedTime are set at the same time, MaxReservedTime is preferred
+and MaxBackups is ignored.</p>
 </td>
 </tr>
 <tr>
@@ -460,6 +483,331 @@ BackupScheduleStatus
 </em>
 </td>
 <td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dmcluster">DMCluster</h3>
+<p>
+<p>DMCluster is the control script&rsquo;s spec</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>apiVersion</code></br>
+string</td>
+<td>
+<code>
+pingcap.com/v1alpha1
+</code>
+</td>
+</tr>
+<tr>
+<td>
+<code>kind</code></br>
+string
+</td>
+<td><code>DMCluster</code></td>
+</tr>
+<tr>
+<td>
+<code>metadata</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code></br>
+<em>
+<a href="#dmclusterspec">
+DMClusterSpec
+</a>
+</em>
+</td>
+<td>
+<p>Spec defines the behavior of a dm cluster</p>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>discovery</code></br>
+<em>
+<a href="#dmdiscoveryspec">
+DMDiscoverySpec
+</a>
+</em>
+</td>
+<td>
+<p>Discovery spec</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>master</code></br>
+<em>
+<a href="#masterspec">
+MasterSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>dm-master cluster spec</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>worker</code></br>
+<em>
+<a href="#workerspec">
+WorkerSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>dm-worker cluster spec</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>paused</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Indicates that the dm cluster is paused and will not be processed by
+the controller.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>version</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TODO: remove optional after defaulting logic introduced
+dm cluster version</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>schedulerName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>SchedulerName of DM cluster Pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>pvReclaimPolicy</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#persistentvolumereclaimpolicy-v1-core">
+Kubernetes core/v1.PersistentVolumeReclaimPolicy
+</a>
+</em>
+</td>
+<td>
+<p>Persistent volume reclaim policy applied to the PVs that consumed by DM cluster</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>imagePullPolicy</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
+Kubernetes core/v1.PullPolicy
+</a>
+</em>
+</td>
+<td>
+<p>ImagePullPolicy of DM cluster Pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>enablePVReclaim</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether enable PVC reclaim for orphan PVC left by statefulset scale-in
+Optional: Defaults to false</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tlsCluster</code></br>
+<em>
+<a href="#tlscluster">
+TLSCluster
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether enable the TLS connection between DM server components
+Optional: Defaults to nil</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tlsClientSecretNames</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TLSClientSecretNames are the names of secrets which stores mysql/tidb server client certificates
+that used by dm-master and dm-worker.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>hostNetwork</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether Hostnetwork is enabled for DM cluster Pods
+Optional: Defaults to false</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>affinity</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core">
+Kubernetes core/v1.Affinity
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Affinity of DM cluster Pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>priorityClassName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PriorityClassName of DM cluster Pods
+Optional: Defaults to omitted</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>nodeSelector</code></br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Base node selectors of DM cluster Pods, components may add or override selectors upon this respectively</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>annotations</code></br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Base annotations of DM cluster Pods, components may add or override selectors upon this respectively</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>timezone</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Time zone of DM cluster Pods
+Optional: Defaults to UTC</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tolerations</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
+[]Kubernetes core/v1.Toleration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Base tolerations of DM cluster Pods, components may add more tolerations upon this respectively</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code></br>
+<em>
+<a href="#dmclusterstatus">
+DMClusterStatus
+</a>
+</em>
+</td>
+<td>
+<p>Most recently observed status of the dm cluster</p>
 </td>
 </tr>
 </tbody>
@@ -676,6 +1024,18 @@ string
 </tr>
 <tr>
 <td>
+<code>toolImage</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ToolImage specifies the tool image used in the backup/restore, only BR image is supported for now</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>imagePullSecrets</code></br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
@@ -686,6 +1046,17 @@ string
 <td>
 <em>(Optional)</em>
 <p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tableFilter</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>TableFilter means Table filter expression for &lsquo;db.table&rsquo; matching. BR supports this from v4.0.3.</p>
 </td>
 </tr>
 </table>
@@ -701,208 +1072,6 @@ RestoreStatus
 </em>
 </td>
 <td>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="tidbgroup">TiDBGroup</h3>
-<p>
-<p>TiDBGroup encode the spec and status of a Group of TiDB Instances</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>apiVersion</code></br>
-string</td>
-<td>
-<code>
-pingcap.com/v1alpha1
-</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>kind</code></br>
-string
-</td>
-<td><code>TiDBGroup</code></td>
-</tr>
-<tr>
-<td>
-<code>metadata</code></br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>spec</code></br>
-<em>
-<a href="#tidbgroupspec">
-TiDBGroupSpec
-</a>
-</em>
-</td>
-<td>
-<p>Spec defines the desired state of TiDBGroup</p>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>TiDBSpec</code></br>
-<em>
-<a href="#tidbspec">
-TiDBSpec
-</a>
-</em>
-</td>
-<td>
-<p>
-(Members of <code>TiDBSpec</code> are embedded into this type.)
-</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>clusterName</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>ClusterName describe the target TidbCluster in the same namespace</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code></br>
-<em>
-<a href="#tidbgroupstatus">
-TiDBGroupStatus
-</a>
-</em>
-</td>
-<td>
-<p>Most recently observed status of the TiDBGroup</p>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="tikvgroup">TiKVGroup</h3>
-<p>
-<p>TiKVGroup encode the spec and status of a Group of TiKV Instances</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>apiVersion</code></br>
-string</td>
-<td>
-<code>
-pingcap.com/v1alpha1
-</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>kind</code></br>
-string
-</td>
-<td><code>TiKVGroup</code></td>
-</tr>
-<tr>
-<td>
-<code>metadata</code></br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>spec</code></br>
-<em>
-<a href="#tikvgroupspec">
-TiKVGroupSpec
-</a>
-</em>
-</td>
-<td>
-<p>Spec defines the desired state of TiKVGroup</p>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>TiKVSpec</code></br>
-<em>
-<a href="#tikvspec">
-TiKVSpec
-</a>
-</em>
-</td>
-<td>
-<p>
-(Members of <code>TiKVSpec</code> are embedded into this type.)
-</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>clusterName</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>ClusterName describe the target TidbCluster in the same namespace</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code></br>
-<em>
-<a href="#tikvgroupstatus">
-TiKVGroupStatus
-</a>
-</em>
-</td>
-<td>
-<p>Most recently observed status of the TiKVGroup</p>
 </td>
 </tr>
 </tbody>
@@ -975,6 +1144,17 @@ DiscoverySpec
 </td>
 <td>
 <p>Discovery spec</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccount</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Specify a Service Account</p>
 </td>
 </tr>
 <tr>
@@ -1314,6 +1494,59 @@ bool
 <p>EnableDynamicConfiguration indicates whether DynamicConfiguration is enabled for the tidbcluster</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>clusterDomain</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ClusterDomain is the Kubernetes Cluster Domain of TiDB cluster
+Optional: Defaults to &ldquo;&rdquo;</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cluster</code></br>
+<em>
+<a href="#tidbclusterref">
+TidbClusterRef
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Cluster is the external cluster, if configured, the components in this TidbCluster will join to this configured cluster.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>pdAddresses</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PDAddresses are the external PD addresses, if configured, the PDs in this TidbCluster will join to the configured PD cluster.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>statefulSetUpdateStrategy</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#statefulsetupdatestrategytype-v1-apps">
+Kubernetes apps/v1.StatefulSetUpdateStrategyType
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StatefulSetUpdateStrategy of TiDB cluster StatefulSets</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -1404,34 +1637,6 @@ TidbClusterRef
 </tr>
 <tr>
 <td>
-<code>metricsUrl</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>We used prometheus to fetch the metrics resources until the pd could provide it.
-MetricsUrl represents the url to fetch the metrics info</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>monitor</code></br>
-<em>
-<a href="#tidbmonitorref">
-TidbMonitorRef
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>TidbMonitorRef describe the target TidbMonitor, when MetricsUrl and Monitor are both set,
-Operator will use MetricsUrl</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>tikv</code></br>
 <em>
 <a href="#tikvautoscalerspec">
@@ -1465,8 +1670,8 @@ TidbAutoScalerSpec
 <td>
 <code>status</code></br>
 <em>
-<a href="#tidbclusterautosclaerstatus">
-TidbClusterAutoSclaerStatus
+<a href="#tidbclusterautoscalerstatus">
+TidbClusterAutoScalerStatus
 </a>
 </em>
 </td>
@@ -1962,6 +2167,17 @@ default to current tidb cluster version, for example: v3.0.15</p>
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>clusterScoped</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>ClusterScoped indicates whether this monitor should manage Kubernetes cluster-wide TiDB clusters</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -1980,9 +2196,119 @@ TidbMonitorStatus
 </tr>
 </tbody>
 </table>
-<h3 id="autoscalerphase">AutoScalerPhase</h3>
+<h3 id="autoresource">AutoResource</h3>
 <p>
+(<em>Appears on:</em>
+<a href="#basicautoscalerspec">BasicAutoScalerSpec</a>)
 </p>
+<p>
+<p>AutoResource describes the resource type definitions</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>cpu</code></br>
+<em>
+k8s.io/apimachinery/pkg/api/resource.Quantity
+</em>
+</td>
+<td>
+<p>CPU defines the CPU of this resource type</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>memory</code></br>
+<em>
+k8s.io/apimachinery/pkg/api/resource.Quantity
+</em>
+</td>
+<td>
+<p>Memory defines the memory of this resource type</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storage</code></br>
+<em>
+k8s.io/apimachinery/pkg/api/resource.Quantity
+</em>
+</td>
+<td>
+<p>Storage defines the storage of this resource type</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>count</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>Count defines the max availabel count of this resource type</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="autorule">AutoRule</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#basicautoscalerspec">BasicAutoScalerSpec</a>)
+</p>
+<p>
+<p>AutoRule describes the rules for auto-scaling with PD API</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>max_threshold</code></br>
+<em>
+float64
+</em>
+</td>
+<td>
+<p>MaxThreshold defines the threshold to scale out</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>min_threshold</code></br>
+<em>
+float64
+</em>
+</td>
+<td>
+<p>MinThreshold defines the threshold to scale in, not applicable to <code>storage</code> rule</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>resource_types</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>ResourceTypes defines the resource types that can be used for scaling</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="brconfig">BRConfig</h3>
 <p>
 (<em>Appears on:</em>
@@ -2030,7 +2356,7 @@ string
 </em>
 </td>
 <td>
-<p>DB is the specific DB which will be backed-up or restored</p>
+<p>Deprecated from BR v4.0.3. Please use <code>Spec.TableFilter</code> instead. DB is the specific DB which will be backed-up or restored</p>
 </td>
 </tr>
 <tr>
@@ -2041,7 +2367,7 @@ string
 </em>
 </td>
 <td>
-<p>Table is the specific table which will be backed-up or restored</p>
+<p>Deprecated from BR v4.0.3. Please use <code>Spec.TableFilter</code> instead. Table is the specific table which will be backed-up or restored</p>
 </td>
 </tr>
 <tr>
@@ -2132,6 +2458,17 @@ bool
 <p>OnLine specifies whether online during restore</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>options</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>Options means options for backup data to remote storage with BR. These options has highest priority.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="backupcondition">BackupCondition</h3>
@@ -2211,7 +2548,8 @@ string
 <h3 id="backupconditiontype">BackupConditionType</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#backupcondition">BackupCondition</a>)
+<a href="#backupcondition">BackupCondition</a>, 
+<a href="#backupstatus">BackupStatus</a>)
 </p>
 <p>
 <p>BackupConditionType represents a valid condition of a Backup.</p>
@@ -2263,7 +2601,9 @@ int32
 </td>
 <td>
 <p>MaxBackups is to specify how many backups we want to keep
-0 is magic number to indicate un-limited backups.</p>
+0 is magic number to indicate un-limited backups.
+if MaxBackups and MaxReservedTime are set at the same time, MaxReservedTime is preferred
+and MaxBackups is ignored.</p>
 </td>
 </tr>
 <tr>
@@ -2535,6 +2875,18 @@ DumplingConfig
 </tr>
 <tr>
 <td>
+<code>toolImage</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ToolImage specifies the tool image used in the backup/restore, only BR image is supported for now</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>imagePullSecrets</code></br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
@@ -2545,6 +2897,17 @@ DumplingConfig
 <td>
 <em>(Optional)</em>
 <p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tableFilter</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>TableFilter means Table filter expression for &lsquo;db.table&rsquo; matching. BR supports this from v4.0.3.</p>
 </td>
 </tr>
 <tr>
@@ -2687,6 +3050,19 @@ string
 </tr>
 <tr>
 <td>
+<code>phase</code></br>
+<em>
+<a href="#backupconditiontype">
+BackupConditionType
+</a>
+</em>
+</td>
+<td>
+<p>Phase is a user readable state inferred from the underlying Backup conditions</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>conditions</code></br>
 <em>
 <a href="#backupcondition">
@@ -2731,28 +3107,15 @@ string
 <tbody>
 <tr>
 <td>
-<code>maxReplicas</code></br>
+<code>rules</code></br>
 <em>
-int32
+<a href="#autorule">
+map[k8s.io/api/core/v1.ResourceName]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.AutoRule
+</a>
 </em>
 </td>
 <td>
-<p>maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale out.
-It cannot be less than minReplicas.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>minReplicas</code></br>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>minReplicas is the lower limit for the number of replicas to which the autoscaler
-can scale down.  It defaults to 1 pod. Scaling is active as long as at least one metric value is
-available.</p>
+<p>Rules defines the rules for auto-scaling with PD API</p>
 </td>
 </tr>
 <tr>
@@ -2783,42 +3146,32 @@ If not set, the default ScaleOutIntervalSeconds will be set to 300</p>
 </tr>
 <tr>
 <td>
-<code>metrics</code></br>
+<code>external</code></br>
 <em>
-<a href="#custommetric">
-[]CustomMetric
+<a href="#externalconfig">
+ExternalConfig
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>metricsTimeDuration</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>MetricsTimeDuration describes the Time duration to be queried in the Prometheus</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>externalEndpoint</code></br>
-<em>
-<a href="#externalendpoint">
-ExternalEndpoint
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ExternalEndpoint makes the auto-scaler controller able to query the external service
+<p>External makes the auto-scaler controller able to query the external service
 to fetch the recommended replicas for TiKV/TiDB</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>resources</code></br>
+<em>
+<a href="#autoresource">
+map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.AutoResource
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Resources represent the resource type definitions that can be used for TiDB/TiKV
+The key is resource_type name of the resource</p>
 </td>
 </tr>
 </tbody>
@@ -2840,43 +3193,6 @@ to fetch the recommended replicas for TiKV/TiDB</p>
 </tr>
 </thead>
 <tbody>
-<tr>
-<td>
-<code>metrics</code></br>
-<em>
-<a href="#metricsstatus">
-[]MetricsStatus
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>MetricsStatusList describes the metrics status in the last auto-scaling reconciliation</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>currentReplicas</code></br>
-<em>
-int32
-</em>
-</td>
-<td>
-<p>CurrentReplicas describes the current replicas for the component(tidb/tikv)</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>recommendedReplicas</code></br>
-<em>
-int32
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>RecommendedReplicas describes the calculated replicas in the last auto-scaling reconciliation for the component(tidb/tikv)</p>
-</td>
-</tr>
 <tr>
 <td>
 <code>lastAutoScalingTimestamp</code></br>
@@ -2998,6 +3314,18 @@ Optional: Defaults to range</p>
 <tbody>
 <tr>
 <td>
+<code>tmp_path</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to &ldquo;/data0/tmp&rdquo;</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>path_realtime_mode</code></br>
 <em>
 bool
@@ -3034,10 +3362,36 @@ int64
 </tr>
 <tr>
 <td>
+<code>flash</code></br>
+<em>
+<a href="#flash">
+Flash
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
 <code>logger</code></br>
 <em>
 <a href="#flashlogger">
 FlashLogger
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>security</code></br>
+<em>
+<a href="#flashsecurity">
+FlashSecurity
 </a>
 </em>
 </td>
@@ -3055,12 +3409,14 @@ and component-level overrides</p>
 <h3 id="componentspec">ComponentSpec</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#masterspec">MasterSpec</a>, 
 <a href="#pdspec">PDSpec</a>, 
 <a href="#pumpspec">PumpSpec</a>, 
 <a href="#ticdcspec">TiCDCSpec</a>, 
 <a href="#tidbspec">TiDBSpec</a>, 
 <a href="#tiflashspec">TiFlashSpec</a>, 
-<a href="#tikvspec">TiKVSpec</a>)
+<a href="#tikvspec">TiKVSpec</a>, 
+<a href="#workerspec">WorkerSpec</a>)
 </p>
 <p>
 <p>ComponentSpec is the base spec of each component, the fields should always accessed by the Basic<Component>Spec() method to respect the cluster-level properties</p>
@@ -3326,6 +3682,22 @@ Set this value longer than the expected cleanup time for your process.
 Defaults to 30 seconds.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>statefulSetUpdateStrategy</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#statefulsetupdatestrategytype-v1-apps">
+Kubernetes apps/v1.StatefulSetUpdateStrategyType
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StatefulSetUpdateStrategy indicates the StatefulSetUpdateStrategy that will be
+employed to update Pods in the StatefulSet when a revision is made to
+Template.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="configmapref">ConfigMapRef</h3>
@@ -3546,6 +3918,18 @@ CrdKind
 </tr>
 <tr>
 <td>
+<code>DMCluster</code></br>
+<em>
+<a href="#crdkind">
+CrdKind
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
 <code>Backup</code></br>
 <em>
 <a href="#crdkind">
@@ -3616,38 +4000,15 @@ CrdKind
 <td>
 </td>
 </tr>
-<tr>
-<td>
-<code>TiKVGroup</code></br>
-<em>
-<a href="#crdkind">
-CrdKind
-</a>
-</em>
-</td>
-<td>
-</td>
-</tr>
-<tr>
-<td>
-<code>TiDBGroup</code></br>
-<em>
-<a href="#crdkind">
-CrdKind
-</a>
-</em>
-</td>
-<td>
-</td>
-</tr>
 </tbody>
 </table>
-<h3 id="custommetric">CustomMetric</h3>
+<h3 id="dmclustercondition">DMClusterCondition</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#basicautoscalerspec">BasicAutoScalerSpec</a>)
+<a href="#dmclusterstatus">DMClusterStatus</a>)
 </p>
 <p>
+<p>DMClusterCondition is dm cluster condition</p>
 </p>
 <table>
 <thead>
@@ -3659,56 +4020,507 @@ CrdKind
 <tbody>
 <tr>
 <td>
-<code>MetricSpec</code></br>
+<code>type</code></br>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#metricspec-v2beta2-autoscaling">
-Kubernetes autoscaling/v2beta2.MetricSpec
+<a href="#dmclusterconditiontype">
+DMClusterConditionType
 </a>
 </em>
 </td>
 <td>
+<p>Type of the condition.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#conditionstatus-v1-core">
+Kubernetes core/v1.ConditionStatus
+</a>
+</em>
+</td>
+<td>
+<p>Status of the condition, one of True, False, Unknown.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastUpdateTime</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<p>The last time this condition was updated.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastTransitionTime</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Last time the condition transitioned from one status to another.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>reason</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The reason for the condition&rsquo;s last transition.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>message</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>A human readable message indicating details about the transition.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dmclusterconditiontype">DMClusterConditionType</h3>
 <p>
-(Members of <code>MetricSpec</code> are embedded into this type.)
+(<em>Appears on:</em>
+<a href="#dmclustercondition">DMClusterCondition</a>)
 </p>
-<em>(Optional)</em>
-<p>metrics contains the specifications for which to use to calculate the
-desired replica count (the maximum replica count across all metrics will
-be used).  The desired replica count is calculated multiplying the
-ratio between the target value and the current value by the current
-number of pods.  Ergo, metrics used must decrease as the pod count is
-increased, and vice-versa.  See the individual metric source types for
-more information about how each type of metric must respond.
-If not set, the auto-scaling won&rsquo;t happen.</p>
+<p>
+<p>DMClusterConditionType represents a dm cluster condition value.</p>
+</p>
+<h3 id="dmclusterspec">DMClusterSpec</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#dmcluster">DMCluster</a>)
+</p>
+<p>
+<p>DMClusterSpec describes the attributes that a user creates on a dm cluster</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>discovery</code></br>
+<em>
+<a href="#dmdiscoveryspec">
+DMDiscoverySpec
+</a>
+</em>
+</td>
+<td>
+<p>Discovery spec</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>leastStoragePressurePeriodSeconds</code></br>
+<code>master</code></br>
 <em>
-int64
+<a href="#masterspec">
+MasterSpec
+</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>LeastStoragePressurePeriodSeconds is only for the storage auto-scaling case when the resource name in the metricSpec
-is <code>Storage</code>. When the Storage metrics meet the pressure, Operator would wait
-LeastStoragePressurePeriodSeconds duration then able to scale out.
-If not set, the default value is <code>300</code></p>
+<p>dm-master cluster spec</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>leastRemainAvailableStoragePercent</code></br>
+<code>worker</code></br>
 <em>
-int64
+<a href="#workerspec">
+WorkerSpec
+</a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>LeastRemainAvailableStoragePercent indicates the least remaining available storage percent compare to
-the capacity storage. If the available storage is lower than the capacity storage * LeastRemainAvailableStoragePercent,
-the storage status will become storage pressure and ready to be scaled out.
-LeastRemainAvailableStoragePercent should between 5 and 90. If not set, the default value would be 10</p>
+<p>dm-worker cluster spec</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>paused</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Indicates that the dm cluster is paused and will not be processed by
+the controller.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>version</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TODO: remove optional after defaulting logic introduced
+dm cluster version</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>schedulerName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>SchedulerName of DM cluster Pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>pvReclaimPolicy</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#persistentvolumereclaimpolicy-v1-core">
+Kubernetes core/v1.PersistentVolumeReclaimPolicy
+</a>
+</em>
+</td>
+<td>
+<p>Persistent volume reclaim policy applied to the PVs that consumed by DM cluster</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>imagePullPolicy</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#pullpolicy-v1-core">
+Kubernetes core/v1.PullPolicy
+</a>
+</em>
+</td>
+<td>
+<p>ImagePullPolicy of DM cluster Pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>imagePullSecrets</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
+[]Kubernetes core/v1.LocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>enablePVReclaim</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether enable PVC reclaim for orphan PVC left by statefulset scale-in
+Optional: Defaults to false</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tlsCluster</code></br>
+<em>
+<a href="#tlscluster">
+TLSCluster
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether enable the TLS connection between DM server components
+Optional: Defaults to nil</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tlsClientSecretNames</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>TLSClientSecretNames are the names of secrets which stores mysql/tidb server client certificates
+that used by dm-master and dm-worker.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>hostNetwork</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether Hostnetwork is enabled for DM cluster Pods
+Optional: Defaults to false</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>affinity</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#affinity-v1-core">
+Kubernetes core/v1.Affinity
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Affinity of DM cluster Pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>priorityClassName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PriorityClassName of DM cluster Pods
+Optional: Defaults to omitted</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>nodeSelector</code></br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Base node selectors of DM cluster Pods, components may add or override selectors upon this respectively</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>annotations</code></br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Base annotations of DM cluster Pods, components may add or override selectors upon this respectively</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>timezone</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Time zone of DM cluster Pods
+Optional: Defaults to UTC</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tolerations</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#toleration-v1-core">
+[]Kubernetes core/v1.Toleration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Base tolerations of DM cluster Pods, components may add more tolerations upon this respectively</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dmclusterstatus">DMClusterStatus</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#dmcluster">DMCluster</a>)
+</p>
+<p>
+<p>DMClusterStatus represents the current status of a dm cluster.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>master</code></br>
+<em>
+<a href="#masterstatus">
+MasterStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>worker</code></br>
+<em>
+<a href="#workerstatus">
+WorkerStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>conditions</code></br>
+<em>
+<a href="#dmclustercondition">
+[]DMClusterCondition
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Represents the latest available observations of a dm cluster&rsquo;s state.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dmdiscoveryspec">DMDiscoverySpec</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#dmclusterspec">DMClusterSpec</a>)
+</p>
+<p>
+<p>DMDiscoverySpec contains details of Discovery members for dm</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>address</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Address indicates the existed TiDB discovery address</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dmsecurityconfig">DMSecurityConfig</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#masterconfig">MasterConfig</a>, 
+<a href="#workerconfig">WorkerConfig</a>)
+</p>
+<p>
+<p>DM common security config</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>ssl-ca</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SSLCA is the path of file that contains list of trusted SSL CAs.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ssl-cert</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SSLCert is the path of file that contains X509 certificate in PEM format.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ssl-key</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SSLKey is the path of file that contains X509 key in PEM format.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cert-allowed-cn</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CertAllowedCN is the Common Name that allowed</p>
 </td>
 </tr>
 </tbody>
@@ -3811,6 +4623,21 @@ bool
 Optional: Defaults to true</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>enable-experimental</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>When enabled, experimental TiDB Dashboard features will be available.
+These features are incomplete or not well tested. Suggest not to enable in
+production.
+Optional: Defaults to false</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="discoveryspec">DiscoverySpec</h3>
@@ -3881,7 +4708,7 @@ Kubernetes core/v1.ResourceRequirements
 </em>
 </td>
 <td>
-<p>TableFilter means Table filter expression for &lsquo;db.table&rsquo; matching</p>
+<p>Deprecated. Please use <code>Spec.TableFilter</code> instead. TableFilter means Table filter expression for &lsquo;db.table&rsquo; matching</p>
 </td>
 </tr>
 </tbody>
@@ -3931,10 +4758,54 @@ bool
 </tr>
 </tbody>
 </table>
-<h3 id="externalendpoint">ExternalEndpoint</h3>
+<h3 id="externalconfig">ExternalConfig</h3>
 <p>
 (<em>Appears on:</em>
 <a href="#basicautoscalerspec">BasicAutoScalerSpec</a>)
+</p>
+<p>
+<p>ExternalConfig represents the external config.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>endpoint</code></br>
+<em>
+<a href="#externalendpoint">
+ExternalEndpoint
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ExternalEndpoint makes the auto-scaler controller able to query the
+external service to fetch the recommended replicas for TiKV/TiDB</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxReplicas</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>maxReplicas is the upper limit for the number of replicas to which the autoscaler can scale out.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="externalendpoint">ExternalEndpoint</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#externalconfig">ExternalConfig</a>)
 </p>
 <p>
 <p>ExternalEndpoint describes the external service endpoint
@@ -4035,7 +4906,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Is log rotate enabled.</p>
+<p>Deprecated in v4.0.0
+Is log rotate enabled.</p>
 </td>
 </tr>
 <tr>
@@ -4129,6 +5001,85 @@ FlashCluster
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>proxy</code></br>
+<em>
+<a href="#flashproxy">
+FlashProxy
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="flashcluster">FlashCluster</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#flash">Flash</a>)
+</p>
+<p>
+<p>FlashCluster is the configuration of [flash.flash_cluster] section.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>log</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to /data0/logs/flash_cluster_manager.log</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>refresh_interval</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to 20</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>update_rule_interval</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to 10</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>master_ttl</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to 60</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="flashlogger">FlashLogger</h3>
@@ -4149,6 +5100,18 @@ FlashCluster
 <tbody>
 <tr>
 <td>
+<code>errorlog</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to /data0/logs/error.log</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>size</code></br>
 <em>
 string
@@ -4157,6 +5120,18 @@ string
 <td>
 <em>(Optional)</em>
 <p>Optional: Defaults to 100M</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>log</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to /data0/logs/server.log</p>
 </td>
 </tr>
 <tr>
@@ -4181,6 +5156,218 @@ int32
 <td>
 <em>(Optional)</em>
 <p>Optional: Defaults to 10</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="flashproxy">FlashProxy</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#flash">Flash</a>)
+</p>
+<p>
+<p>FlashProxy is the configuration of [flash.proxy] section.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>addr</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to 0.0.0.0:20170</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>advertise-addr</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to {clusterName}-tiflash-POD_NUM.{clusterName}-tiflash-peer.{namespace}:20170</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>data-dir</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to /data0/proxy</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>config</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to /data0/proxy.toml</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>log-file</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to /data0/logs/proxy.log</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="flashsecurity">FlashSecurity</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#commonconfig">CommonConfig</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>ca_path</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Be set automatically by Operator</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cert_path</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Be set automatically by Operator</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>key_path</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Be set automatically by Operator</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cert_allowed_cn</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CertAllowedCN is the Common Name that allowed</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="flashserverconfig">FlashServerConfig</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#proxyconfig">ProxyConfig</a>)
+</p>
+<p>
+<p>FlashServerConfig is the configuration of Proxy server.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>engine-addr</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Default to {clusterName}-tiflash-POD_NUM.{clusterName}-tiflash-peer.{namespace}:3930</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>status-addr</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Default to 0.0.0.0:20292</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>advertise-status-addr</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Default to {clusterName}-tiflash-POD_NUM.{clusterName}-tiflash-peer.{namespace}:20292</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>TiKVServerConfig</code></br>
+<em>
+<a href="#tikvserverconfig">
+TiKVServerConfig
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>TiKVServerConfig</code> are embedded into this type.)
+</p>
 </td>
 </tr>
 </tbody>
@@ -4399,38 +5586,6 @@ IngressSpec
 </td>
 <td>
 <em>(Optional)</em>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="groupref">GroupRef</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#tidbclusterstatus">TidbClusterStatus</a>)
-</p>
-<p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>Reference</code></br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
-Kubernetes core/v1.LocalObjectReference
-</a>
-</em>
-</td>
-<td>
-<p>
-(Members of <code>Reference</code> are embedded into this type.)
-</p>
 </td>
 </tr>
 </tbody>
@@ -4764,7 +5919,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Disable automatic timestamps in output.</p>
+<p>Deprecated in v3.0.5. Use EnableTimestamp instead
+Disable automatic timestamps in output.</p>
 </td>
 </tr>
 <tr>
@@ -4911,6 +6067,187 @@ Kubernetes core/v1.ResourceRequirements
 </tr>
 </tbody>
 </table>
+<h3 id="masterconfig">MasterConfig</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#masterspec">MasterSpec</a>)
+</p>
+<p>
+<p>MasterConfig is the configuration of dm-master-server</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>log-level</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Log level.
+Optional: Defaults to info</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>log-file</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>File log config.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>log-format</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Log format. one of json or text.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>rpc-timeout</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RPC timeout when dm-master request to dm-worker
+Optional: Defaults to 30s</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>rpc-rate-limit</code></br>
+<em>
+float64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RPC agent rate limit when dm-master request to dm-worker
+Optional: Defaults to 10</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>rpc-rate-burst</code></br>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RPC agent rate burst when dm-master request to dm-worker
+Optional: Defaults to 40</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>DMSecurityConfig</code></br>
+<em>
+<a href="#dmsecurityconfig">
+DMSecurityConfig
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>DMSecurityConfig</code> are embedded into this type.)
+</p>
+<em>(Optional)</em>
+<p>dm-master&rsquo;s security config</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="masterfailuremember">MasterFailureMember</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#masterstatus">MasterStatus</a>)
+</p>
+<p>
+<p>MasterFailureMember is the dm-master failure member information</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>podName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>memberID</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>pvcUID</code></br>
+<em>
+k8s.io/apimachinery/pkg/types.UID
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>memberDeleted</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>createdAt</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="masterkeyfileconfig">MasterKeyFileConfig</h3>
 <p>
 (<em>Appears on:</em>
@@ -5035,29 +6372,13 @@ optional</p>
 </tr>
 </tbody>
 </table>
-<h3 id="memberphase">MemberPhase</h3>
+<h3 id="mastermember">MasterMember</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#pdstatus">PDStatus</a>, 
-<a href="#pumpstatus">PumpStatus</a>, 
-<a href="#ticdcstatus">TiCDCStatus</a>, 
-<a href="#tidbstatus">TiDBStatus</a>, 
-<a href="#tikvstatus">TiKVStatus</a>)
+<a href="#masterstatus">MasterStatus</a>)
 </p>
 <p>
-<p>MemberPhase is the current state of member</p>
-</p>
-<h3 id="membertype">MemberType</h3>
-<p>
-<p>MemberType represents member type</p>
-</p>
-<h3 id="metricsstatus">MetricsStatus</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#basicautoscalerstatus">BasicAutoScalerStatus</a>)
-</p>
-<p>
-<p>MetricsStatus describe the basic metrics status in the last auto-scaling reconciliation</p>
+<p>MasterMember is dm-master member status</p>
 </p>
 <table>
 <thead>
@@ -5075,51 +6396,400 @@ string
 </em>
 </td>
 <td>
-<p>Name indicates the metrics name</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>currentValue</code></br>
+<code>id</code></br>
 <em>
 string
 </em>
 </td>
 <td>
-<em>(Optional)</em>
-<p>CurrentValue indicates the value calculated in the last auto-scaling reconciliation</p>
+<p>member id is actually a uint64, but apimachinery&rsquo;s json only treats numbers as int64/float64
+so uint64 may overflow int64 and thus convert to float64</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>thresholdValue</code></br>
+<code>clientURL</code></br>
 <em>
 string
 </em>
 </td>
 <td>
-<em>(Optional)</em>
-<p>TargetValue indicates the threshold value for this metrics in auto-scaling</p>
 </td>
 </tr>
 <tr>
 <td>
-<code>StorageMetricsStatus</code></br>
+<code>health</code></br>
 <em>
-<a href="#storagemetricsstatus">
-StorageMetricsStatus
+bool
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastTransitionTime</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<p>Last time the health transitioned from one to another.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="masterservicespec">MasterServiceSpec</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#masterspec">MasterSpec</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>ServiceSpec</code></br>
+<em>
+<a href="#servicespec">
+ServiceSpec
 </a>
 </em>
 </td>
 <td>
 <p>
-(Members of <code>StorageMetricsStatus</code> are embedded into this type.)
+(Members of <code>ServiceSpec</code> are embedded into this type.)
 </p>
+</td>
+</tr>
+<tr>
+<td>
+<code>externalTrafficPolicy</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#serviceexternaltrafficpolicytype-v1-core">
+Kubernetes core/v1.ServiceExternalTrafficPolicyType
+</a>
+</em>
+</td>
+<td>
 <em>(Optional)</em>
+<p>ExternalTrafficPolicy of the service
+Optional: Defaults to omitted</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>masterNodePort</code></br>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to 0</p>
 </td>
 </tr>
 </tbody>
 </table>
+<h3 id="masterspec">MasterSpec</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#dmclusterspec">DMClusterSpec</a>)
+</p>
+<p>
+<p>MasterSpec contains details of dm-master members</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>ComponentSpec</code></br>
+<em>
+<a href="#componentspec">
+ComponentSpec
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>ComponentSpec</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ResourceRequirements</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>ResourceRequirements</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>replicas</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>The desired ready replicas</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>baseImage</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Base image of the component, image tag is now allowed during validation</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>service</code></br>
+<em>
+<a href="#masterservicespec">
+MasterServiceSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Service defines a Kubernetes service of Master cluster.
+Optional: Defaults to <code>.spec.services</code> in favor of backward compatibility</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxFailoverCount</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxFailoverCount limit the max replicas could be added in failover, 0 means no failover.
+Optional: Defaults to 3</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageClassName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The storageClassName of the persistent volume for dm-master data storage.
+Defaults to Kubernetes default storage class.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageSize</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StorageSize is the request storage size for dm-master.
+Defaults to &ldquo;10Gi&rdquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataSubDir</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Subdirectory within the volume to store dm-master Data. By default, the data
+is stored in the root directory of volume which is mounted at
+/var/lib/dm-master.
+Specifying this will change the data directory to a subdirectory, e.g.
+/var/lib/dm-master/data if you set the value to &ldquo;data&rdquo;.
+It&rsquo;s dangerous to change this value for a running cluster as it will
+upgrade your cluster to use a new storage directory.
+Defaults to &ldquo;&rdquo; (volume&rsquo;s root).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>config</code></br>
+<em>
+<a href="#masterconfig">
+MasterConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Config is the Configuration of dm-master-servers</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="masterstatus">MasterStatus</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#dmclusterstatus">DMClusterStatus</a>)
+</p>
+<p>
+<p>MasterStatus is dm-master status</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>synced</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>phase</code></br>
+<em>
+<a href="#memberphase">
+MemberPhase
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>statefulSet</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#statefulsetstatus-v1-apps">
+Kubernetes apps/v1.StatefulSetStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>members</code></br>
+<em>
+<a href="#mastermember">
+map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.MasterMember
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>leader</code></br>
+<em>
+<a href="#mastermember">
+MasterMember
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>failureMembers</code></br>
+<em>
+<a href="#masterfailuremember">
+map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.MasterFailureMember
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>unjoinedMembers</code></br>
+<em>
+<a href="#unjoinedmember">
+map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.UnjoinedMember
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>image</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="memberphase">MemberPhase</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#masterstatus">MasterStatus</a>, 
+<a href="#pdstatus">PDStatus</a>, 
+<a href="#pumpstatus">PumpStatus</a>, 
+<a href="#ticdcstatus">TiCDCStatus</a>, 
+<a href="#tidbstatus">TiDBStatus</a>, 
+<a href="#tikvstatus">TiKVStatus</a>, 
+<a href="#workerstatus">WorkerStatus</a>)
+</p>
+<p>
+<p>MemberPhase is the current state of member</p>
+</p>
+<h3 id="membertype">MemberType</h3>
+<p>
+<p>MemberType represents member type</p>
+</p>
 <h3 id="monitorcomponentaccessor">MonitorComponentAccessor</h3>
 <p>
 </p>
@@ -5427,10 +7097,6 @@ time.Duration
 </table>
 <h3 id="pdconfig">PDConfig</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#pdspec">PDSpec</a>)
-</p>
-<p>
 <p>PDConfig is the configuration of pd-server</p>
 </p>
 <table>
@@ -5462,6 +7128,18 @@ bool
 <td>
 <em>(Optional)</em>
 <p>Optional: Defaults to true</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>initial-cluster-token</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>set different tokens to prevent communication between PDs in different clusters.</p>
 </td>
 </tr>
 <tr>
@@ -5725,7 +7403,8 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>NamespaceClassifier is for classifying stores/regions into different
+<p>Deprecated in v4.0.0
+NamespaceClassifier is for classifying stores/regions into different
 namespaces.
 Optional: Defaults to true</p>
 </td>
@@ -5741,6 +7420,33 @@ DashboardConfig
 </td>
 <td>
 <em>(Optional)</em>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="pdconfigwraper">PDConfigWraper</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#pdspec">PDSpec</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>GenericConfig</code></br>
+<em>
+github.com/pingcap/tidb-operator/pkg/util/config.GenericConfig
+</em>
+</td>
+<td>
 </td>
 </tr>
 </tbody>
@@ -6205,7 +7911,7 @@ Immutable, change should be made through pd-ctl after cluster creation</p>
 </tr>
 <tr>
 <td>
-<code>strictly-match-label,string</code></br>
+<code>strictly-match-label</code></br>
 <em>
 bool
 </em>
@@ -6219,7 +7925,7 @@ Imported from v3.1.0</p>
 </tr>
 <tr>
 <td>
-<code>enable-placement-rules,string</code></br>
+<code>enable-placement-rules</code></br>
 <em>
 bool
 </em>
@@ -6481,7 +8187,7 @@ Immutable, change should be made through pd-ctl after cluster creation</p>
 </tr>
 <tr>
 <td>
-<code>disable-raft-learner,string</code></br>
+<code>disable-raft-learner</code></br>
 <em>
 bool
 </em>
@@ -6494,7 +8200,7 @@ Immutable, change should be made through pd-ctl after cluster creation</p>
 </tr>
 <tr>
 <td>
-<code>disable-remove-down-replica,string</code></br>
+<code>disable-remove-down-replica</code></br>
 <em>
 bool
 </em>
@@ -6508,7 +8214,7 @@ Immutable, change should be made through pd-ctl after cluster creation</p>
 </tr>
 <tr>
 <td>
-<code>disable-replace-offline-replica,string</code></br>
+<code>disable-replace-offline-replica</code></br>
 <em>
 bool
 </em>
@@ -6522,7 +8228,7 @@ Immutable, change should be made through pd-ctl after cluster creation</p>
 </tr>
 <tr>
 <td>
-<code>disable-make-up-replica,string</code></br>
+<code>disable-make-up-replica</code></br>
 <em>
 bool
 </em>
@@ -6536,7 +8242,7 @@ Immutable, change should be made through pd-ctl after cluster creation</p>
 </tr>
 <tr>
 <td>
-<code>disable-remove-extra-replica,string</code></br>
+<code>disable-remove-extra-replica</code></br>
 <em>
 bool
 </em>
@@ -6550,7 +8256,7 @@ Immutable, change should be made through pd-ctl after cluster creation</p>
 </tr>
 <tr>
 <td>
-<code>disable-location-replacement,string</code></br>
+<code>disable-location-replacement</code></br>
 <em>
 bool
 </em>
@@ -6564,7 +8270,7 @@ Immutable, change should be made through pd-ctl after cluster creation</p>
 </tr>
 <tr>
 <td>
-<code>disable-namespace-relocation,string</code></br>
+<code>disable-namespace-relocation</code></br>
 <em>
 bool
 </em>
@@ -6605,7 +8311,7 @@ map[string]string
 </tr>
 <tr>
 <td>
-<code>enable-one-way-merge,string</code></br>
+<code>enable-one-way-merge</code></br>
 <em>
 bool
 </em>
@@ -6618,7 +8324,7 @@ Imported from v3.1.0</p>
 </tr>
 <tr>
 <td>
-<code>enable-cross-table-merge,string</code></br>
+<code>enable-cross-table-merge</code></br>
 <em>
 bool
 </em>
@@ -6714,7 +8420,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>CAPath is the path of file that contains list of trusted SSL CAs. if set, following four settings shouldn&rsquo;t be empty</p>
+<p>CAPath is the path of file that contains list of trusted SSL CAs.</p>
 </td>
 </tr>
 <tr>
@@ -6773,7 +8479,7 @@ string
 <tbody>
 <tr>
 <td>
-<code>use-region-storage,string</code></br>
+<code>use-region-storage</code></br>
 <em>
 bool
 </em>
@@ -6843,6 +8549,17 @@ Kubernetes core/v1.ResourceRequirements
 <p>
 (Members of <code>ResourceRequirements</code> are embedded into this type.)
 </p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccount</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Specify a Service Account for pd</p>
 </td>
 </tr>
 <tr>
@@ -6933,8 +8650,8 @@ Defaults to &ldquo;&rdquo; (volume&rsquo;s root).</p>
 <td>
 <code>config</code></br>
 <em>
-<a href="#pdconfig">
-PDConfig
+<a href="#pdconfigwraper">
+PDConfigWraper
 </a>
 </em>
 </td>
@@ -6966,6 +8683,33 @@ bool
 <td>
 <em>(Optional)</em>
 <p>EnableDashboardInternalProxy would directly set <code>internal-proxy</code> in the <code>PdConfig</code></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mountClusterClientSecret</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MountClusterClientSecret indicates whether to mount <code>cluster-client-secret</code> to the Pod</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageVolumes</code></br>
+<em>
+<a href="#storagevolume">
+[]StorageVolume
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StorageVolumes is additional storage apply for PD node.
+Default to storageClassName storage class</p>
 </td>
 </tr>
 </tbody>
@@ -7023,6 +8767,18 @@ Kubernetes apps/v1.StatefulSetStatus
 <tr>
 <td>
 <code>members</code></br>
+<em>
+<a href="#pdmember">
+map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.PDMember
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>peerMembers</code></br>
 <em>
 <a href="#pdmember">
 map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.PDMember
@@ -7203,7 +8959,7 @@ uint
 </td>
 <td>
 <em>(Optional)</em>
-<p>Optional: Defaults to 1024</p>
+<p>Optional: Defaults to 512</p>
 </td>
 </tr>
 <tr>
@@ -7332,7 +9088,8 @@ uint64
 </td>
 <td>
 <em>(Optional)</em>
-<p>Optional: Defaults to 300000</p>
+<p>Deprecated in v4.0.0
+Optional: Defaults to 300000</p>
 </td>
 </tr>
 </tbody>
@@ -7714,6 +9471,214 @@ PrometheusConfiguration
 </tr>
 </tbody>
 </table>
+<h3 id="proxyconfig">ProxyConfig</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tiflashconfig">TiFlashConfig</a>)
+</p>
+<p>
+<p>ProxyConfig is the configuration of TiFlash proxy process.
+All the configurations are same with those of TiKV except adding <code>engine-addr</code> in the TiKVServerConfig</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>log-level</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to info</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>log-file</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>log-rotation-timespan</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to 24h</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>panic-when-unexpected-key-or-data</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>server</code></br>
+<em>
+<a href="#flashserverconfig">
+FlashServerConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>storage</code></br>
+<em>
+<a href="#tikvstorageconfig">
+TiKVStorageConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>raftstore</code></br>
+<em>
+<a href="#tikvraftstoreconfig">
+TiKVRaftstoreConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>rocksdb</code></br>
+<em>
+<a href="#tikvdbconfig">
+TiKVDbConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>coprocessor</code></br>
+<em>
+<a href="#tikvcoprocessorconfig">
+TiKVCoprocessorConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>readpool</code></br>
+<em>
+<a href="#tikvreadpoolconfig">
+TiKVReadPoolConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>raftdb</code></br>
+<em>
+<a href="#tikvraftdbconfig">
+TiKVRaftDBConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>import</code></br>
+<em>
+<a href="#tikvimportconfig">
+TiKVImportConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>gc</code></br>
+<em>
+<a href="#tikvgcconfig">
+TiKVGCConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>pd</code></br>
+<em>
+<a href="#tikvpdconfig">
+TiKVPDConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>security</code></br>
+<em>
+<a href="#tikvsecurityconfig">
+TiKVSecurityConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="proxyprotocol">ProxyProtocol</h3>
 <p>
 (<em>Appears on:</em>
@@ -7806,6 +9771,17 @@ Kubernetes core/v1.ResourceRequirements
 </tr>
 <tr>
 <td>
+<code>serviceAccount</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Specify a Service Account for pump</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>replicas</code></br>
 <em>
 int32
@@ -7843,15 +9819,12 @@ Defaults to Kubernetes default storage class.</p>
 </tr>
 <tr>
 <td>
-<code>GenericConfig</code></br>
+<code>config</code></br>
 <em>
 github.com/pingcap/tidb-operator/pkg/util/config.GenericConfig
 </em>
 </td>
 <td>
-<p>
-(Members of <code>GenericConfig</code> are embedded into this type.)
-</p>
 <em>(Optional)</em>
 <p>TODO: add schema
 The configuration of Pump cluster.</p>
@@ -8061,7 +10034,8 @@ string
 <h3 id="restoreconditiontype">RestoreConditionType</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#restorecondition">RestoreCondition</a>)
+<a href="#restorecondition">RestoreCondition</a>, 
+<a href="#restorestatus">RestoreStatus</a>)
 </p>
 <p>
 <p>RestoreConditionType represents a valid condition of a Restore.</p>
@@ -8238,6 +10212,18 @@ string
 </tr>
 <tr>
 <td>
+<code>toolImage</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ToolImage specifies the tool image used in the backup/restore, only BR image is supported for now</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>imagePullSecrets</code></br>
 <em>
 <a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#localobjectreference-v1-core">
@@ -8248,6 +10234,17 @@ string
 <td>
 <em>(Optional)</em>
 <p>ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tableFilter</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>TableFilter means Table filter expression for &lsquo;db.table&rsquo; matching. BR supports this from v4.0.3.</p>
 </td>
 </tr>
 </tbody>
@@ -8303,6 +10300,19 @@ string
 </td>
 <td>
 <p>CommitTs is the snapshot time point of tidb cluster.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>phase</code></br>
+<em>
+<a href="#restoreconditiontype">
+RestoreConditionType
+</a>
+</em>
+</td>
+<td>
+<p>Phase is a user readable state inferred from the underlying Restore conditions</p>
 </td>
 </tr>
 <tr>
@@ -8658,6 +10668,7 @@ string
 <p>
 (<em>Appears on:</em>
 <a href="#grafanaspec">GrafanaSpec</a>, 
+<a href="#masterservicespec">MasterServiceSpec</a>, 
 <a href="#pdspec">PDSpec</a>, 
 <a href="#prometheusspec">PrometheusSpec</a>, 
 <a href="#reloaderspec">ReloaderSpec</a>, 
@@ -8957,86 +10968,6 @@ More info: <a href="https://kubernetes.io/docs/concepts/storage/persistent-volum
 </tr>
 </tbody>
 </table>
-<h3 id="storagemetricsstatus">StorageMetricsStatus</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#metricsstatus">MetricsStatus</a>)
-</p>
-<p>
-<p>StorageMetricsStatus describe the storage metrics status in the last auto-scaling reconciliation</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>storagePressure</code></br>
-<em>
-bool
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>StoragePressure indicates whether storage under pressure</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>storagePressureStartTime</code></br>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
-Kubernetes meta/v1.Time
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>StoragePressureStartTime indicates the timestamp of the StoragePressure fist become true from false or nil</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>availableStorage</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>capacityStorage</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>baselineAvailableStorage</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>BaselineAvailableStorage indicates the baseline for available storage size.
-This is calculated by the capacity storage size * storage auto-scaling baseline percent value
-If the AvailableStorage is less than the BaselineAvailableStorage, the database is under StoragePressure
-optional</p>
-</td>
-</tr>
-</tbody>
-</table>
 <h3 id="storageprovider">StorageProvider</h3>
 <p>
 (<em>Appears on:</em>
@@ -9080,9 +11011,70 @@ GcsStorageProvider
 </tr>
 </tbody>
 </table>
+<h3 id="storagevolume">StorageVolume</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#pdspec">PDSpec</a>, 
+<a href="#tidbspec">TiDBSpec</a>, 
+<a href="#tikvspec">TiKVSpec</a>)
+</p>
+<p>
+<p>StorageVolume is TiKV storage information</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageClassName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageSize</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>mountPath</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="tlscluster">TLSCluster</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#dmclusterspec">DMClusterSpec</a>, 
 <a href="#tidbclusterspec">TidbClusterSpec</a>)
 </p>
 <p>
@@ -9472,10 +11464,6 @@ Optional: Defaults to nil</p>
 </table>
 <h3 id="tidbconfig">TiDBConfig</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#tidbspec">TiDBSpec</a>)
-</p>
-<p>
 <p>TiDBConfig is the configuration of tidb-server
 For more detail, refer to <a href="https://pingcap.com/docs/stable/reference/configuration/tidb-server/configuration/">https://pingcap.com/docs/stable/reference/configuration/tidb-server/configuration/</a></p>
 </p>
@@ -9593,6 +11581,18 @@ string
 </tr>
 <tr>
 <td>
+<code>max-index-length</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to 3072</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>mem-quota-query</code></br>
 <em>
 int64
@@ -9651,6 +11651,7 @@ TxnLocalLatches
 </td>
 <td>
 <em>(Optional)</em>
+<p>Deprecated in v4.0.0</p>
 </td>
 </tr>
 <tr>
@@ -9993,6 +11994,19 @@ uint64
 </tr>
 <tr>
 <td>
+<code>skip-register-to-dashboard</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>imported from v4.0.5
+SkipRegisterToDashboard tells TiDB don&rsquo;t register itself to the dashboard.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>enable-telemetry</code></br>
 <em>
 bool
@@ -10005,6 +12019,45 @@ If this config is set to <code>false</code> on all TiDB servers, telemetry will 
 See PingCAP privacy policy for details: <a href="https://pingcap.com/en/privacy-policy/">https://pingcap.com/en/privacy-policy/</a>.
 Imported from v4.0.2.
 Optional: Defaults to true</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>labels</code></br>
+<em>
+map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Labels are labels for TiDB server</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tidbconfigwraper">TiDBConfigWraper</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tidbspec">TiDBSpec</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>GenericConfig</code></br>
+<em>
+github.com/pingcap/tidb-operator/pkg/util/config.GenericConfig
+</em>
+</td>
+<td>
 </td>
 </tr>
 </tbody>
@@ -10045,83 +12098,6 @@ Kubernetes meta/v1.Time
 </em>
 </td>
 <td>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="tidbgroupspec">TiDBGroupSpec</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#tidbgroup">TiDBGroup</a>)
-</p>
-<p>
-<p>TiDBGroupSpec describes the attributes that a user creates on a TiDBGroup</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>TiDBSpec</code></br>
-<em>
-<a href="#tidbspec">
-TiDBSpec
-</a>
-</em>
-</td>
-<td>
-<p>
-(Members of <code>TiDBSpec</code> are embedded into this type.)
-</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>clusterName</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<p>ClusterName describe the target TidbCluster in the same namespace</p>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="tidbgroupstatus">TiDBGroupStatus</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#tidbgroup">TiDBGroup</a>)
-</p>
-<p>
-<p>Most recently observed status of the TiDBGroup</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>TiDBStatus</code></br>
-<em>
-<a href="#tidbstatus">
-TiDBStatus
-</a>
-</em>
-</td>
-<td>
-<p>
-(Members of <code>TiDBStatus</code> are embedded into this type.)
-</p>
 </td>
 </tr>
 </tbody>
@@ -10184,6 +12160,40 @@ string
 </td>
 <td>
 <p>Node hosting pod of this TiDB member.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tidbprobe">TiDBProbe</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tidbspec">TiDBSpec</a>)
+</p>
+<p>
+<p>TiDBProbe contains details of probing tidb.
+default probe by TCPPort on 4000.</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>type</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>&ldquo;tcp&rdquo; will use TCP socket to connetct port 4000</p>
+<p>&ldquo;command&rdquo; will probe the status api of tidb.
+This will use curl command to request tidb, before v4.0.9 there is no curl in the image,
+So do not use this before v4.0.9.</p>
 </td>
 </tr>
 </tbody>
@@ -10333,7 +12343,6 @@ Deprecated, use TidbCluster.HelperImagePullPolicy instead</p>
 <h3 id="tidbspec">TiDBSpec</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#tidbgroupspec">TiDBGroupSpec</a>, 
 <a href="#tidbclusterspec">TidbClusterSpec</a>)
 </p>
 <p>
@@ -10375,6 +12384,17 @@ Kubernetes core/v1.ResourceRequirements
 <p>
 (Members of <code>ResourceRequirements</code> are embedded into this type.)
 </p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccount</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Specify a Service Account for tidb</p>
 </td>
 </tr>
 <tr>
@@ -10500,8 +12520,8 @@ TiDBSlowLogTailerSpec
 <td>
 <code>config</code></br>
 <em>
-<a href="#tidbconfig">
-TiDBConfig
+<a href="#tidbconfigwraper">
+TiDBConfigWraper
 </a>
 </em>
 </td>
@@ -10526,12 +12546,54 @@ events. For the PostStart and PreStop lifecycle handlers, management of the cont
 until the action is complete, unless the container process fails, in which case the handler is aborted.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>storageVolumes</code></br>
+<em>
+<a href="#storagevolume">
+[]StorageVolume
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StorageVolumes is additional storage apply for TiDB node.
+Default to storageClassName storage class</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageClassName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The storageClassName of the persistent volume for TiDB data storage.
+Defaults to Kubernetes default storage class.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>readinessProbe</code></br>
+<em>
+<a href="#tidbprobe">
+TiDBProbe
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ReadinessProbe describes actions that probe the tidb&rsquo;s readiness.
+the default behavior is like setting type as &ldquo;tcp&rdquo;</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tidbstatus">TiDBStatus</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#tidbgroupstatus">TiDBGroupStatus</a>, 
 <a href="#tidbclusterstatus">TidbClusterStatus</a>)
 </p>
 <p>
@@ -10658,11 +12720,34 @@ kubectl create secret generic <clusterName>-tidb-client-secret &ndash;namespace=
 </tr>
 </tbody>
 </table>
-<h3 id="tiflashconfig">TiFlashConfig</h3>
+<h3 id="tiflashcommonconfigwraper">TiFlashCommonConfigWraper</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#tiflashspec">TiFlashSpec</a>)
+<a href="#tiflashconfigwraper">TiFlashConfigWraper</a>)
 </p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>GenericConfig</code></br>
+<em>
+github.com/pingcap/tidb-operator/pkg/util/config.GenericConfig
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tiflashconfig">TiFlashConfig</h3>
 <p>
 <p>TiFlashConfig is the configuration of TiFlash.</p>
 </p>
@@ -10686,6 +12771,88 @@ CommonConfig
 <td>
 <em>(Optional)</em>
 <p>commonConfig is the Configuration of TiFlash process</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>proxy</code></br>
+<em>
+<a href="#proxyconfig">
+ProxyConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>proxyConfig is the Configuration of proxy process</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tiflashconfigwraper">TiFlashConfigWraper</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tiflashspec">TiFlashSpec</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>config</code></br>
+<em>
+<a href="#tiflashcommonconfigwraper">
+TiFlashCommonConfigWraper
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>proxy</code></br>
+<em>
+<a href="#tiflashproxyconfigwraper">
+TiFlashProxyConfigWraper
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tiflashproxyconfigwraper">TiFlashProxyConfigWraper</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tiflashconfigwraper">TiFlashConfigWraper</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>GenericConfig</code></br>
+<em>
+github.com/pingcap/tidb-operator/pkg/util/config.GenericConfig
+</em>
+</td>
+<td>
 </td>
 </tr>
 </tbody>
@@ -10815,8 +12982,8 @@ TiFlash supports multiple disks.</p>
 <td>
 <code>config</code></br>
 <em>
-<a href="#tiflashconfig">
-TiFlashConfig
+<a href="#tiflashconfigwraper">
+TiFlashConfigWraper
 </a>
 </em>
 </td>
@@ -10837,6 +13004,18 @@ LogTailerSpec
 <td>
 <em>(Optional)</em>
 <p>LogTailer is the configurations of the log tailers for TiFlash</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>recoverFailover</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RecoverFailover indicates that Operator can recover the failover Pods</p>
 </td>
 </tr>
 </tbody>
@@ -11429,7 +13608,8 @@ uint
 </td>
 <td>
 <em>(Optional)</em>
-<p>MaxTxnTimeUse is the max time a Txn may use (in seconds) from its startTS to commitTS.
+<p>Deprecated in v4.0.0
+MaxTxnTimeUse is the max time a Txn may use (in seconds) from its startTS to commitTS.
 Optional: Defaults to 590</p>
 </td>
 </tr>
@@ -11542,10 +13722,6 @@ CoprocessorCache
 </table>
 <h3 id="tikvconfig">TiKVConfig</h3>
 <p>
-(<em>Appears on:</em>
-<a href="#tikvspec">TiKVSpec</a>)
-</p>
-<p>
 <p>TiKVConfig is the configuration of TiKV.</p>
 </p>
 <table>
@@ -11571,6 +13747,17 @@ string
 <tr>
 <td>
 <code>log-file</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>log-format</code></br>
 <em>
 string
 </em>
@@ -11817,9 +14004,37 @@ TiKVBackupConfig
 </tr>
 </tbody>
 </table>
+<h3 id="tikvconfigwraper">TiKVConfigWraper</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#tikvspec">TiKVSpec</a>)
+</p>
+<p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>GenericConfig</code></br>
+<em>
+github.com/pingcap/tidb-operator/pkg/util/config.GenericConfig
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="tikvcoprocessorconfig">TiKVCoprocessorConfig</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#proxyconfig">ProxyConfig</a>, 
 <a href="#tikvconfig">TiKVConfig</a>)
 </p>
 <p>
@@ -12039,6 +14254,7 @@ bool
 <h3 id="tikvdbconfig">TiKVDbConfig</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#proxyconfig">ProxyConfig</a>, 
 <a href="#tikvconfig">TiKVConfig</a>)
 </p>
 <p>
@@ -12513,6 +14729,7 @@ Kubernetes meta/v1.Time
 <h3 id="tikvgcconfig">TiKVGCConfig</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#proxyconfig">ProxyConfig</a>, 
 <a href="#tikvconfig">TiKVConfig</a>)
 </p>
 <p>
@@ -12527,7 +14744,7 @@ Kubernetes meta/v1.Time
 <tbody>
 <tr>
 <td>
-<code>	batch-keys</code></br>
+<code>batch-keys</code></br>
 <em>
 int64
 </em>
@@ -12539,7 +14756,7 @@ int64
 </tr>
 <tr>
 <td>
-<code>	max-write-bytes-per-sec</code></br>
+<code>max-write-bytes-per-sec</code></br>
 <em>
 string
 </em>
@@ -12548,81 +14765,26 @@ string
 <em>(Optional)</em>
 </td>
 </tr>
-</tbody>
-</table>
-<h3 id="tikvgroupspec">TiKVGroupSpec</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#tikvgroup">TiKVGroup</a>)
-</p>
-<p>
-<p>TiKVGroupSpec describes the attributes that a user creates on a TiKVGroup</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
 <tr>
 <td>
-<code>TiKVSpec</code></br>
+<code>enable-compaction-filter</code></br>
 <em>
-<a href="#tikvspec">
-TiKVSpec
-</a>
+bool
 </em>
 </td>
 <td>
-<p>
-(Members of <code>TiKVSpec</code> are embedded into this type.)
-</p>
+<em>(Optional)</em>
 </td>
 </tr>
 <tr>
 <td>
-<code>clusterName</code></br>
+<code>compaction-filter-skip-version-check</code></br>
 <em>
-string
+bool
 </em>
 </td>
 <td>
-<p>ClusterName describe the target TidbCluster in the same namespace</p>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="tikvgroupstatus">TiKVGroupStatus</h3>
-<p>
-(<em>Appears on:</em>
-<a href="#tikvgroup">TiKVGroup</a>)
-</p>
-<p>
-<p>Most recently observed status of the TiKVGroup</p>
-</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>TiKVStatus</code></br>
-<em>
-<a href="#tikvstatus">
-TiKVStatus
-</a>
-</em>
-</td>
-<td>
-<p>
-(Members of <code>TiKVStatus</code> are embedded into this type.)
-</p>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
@@ -12630,6 +14792,7 @@ TiKVStatus
 <h3 id="tikvimportconfig">TiKVImportConfig</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#proxyconfig">ProxyConfig</a>, 
 <a href="#tikvconfig">TiKVConfig</a>)
 </p>
 <p>
@@ -12810,6 +14973,7 @@ If the type set to kms, this config should be filled</p>
 <h3 id="tikvpdconfig">TiKVPDConfig</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#proxyconfig">ProxyConfig</a>, 
 <a href="#tikvconfig">TiKVConfig</a>)
 </p>
 <p>
@@ -12950,6 +15114,7 @@ bool
 <h3 id="tikvraftdbconfig">TiKVRaftDBConfig</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#proxyconfig">ProxyConfig</a>, 
 <a href="#tikvconfig">TiKVConfig</a>)
 </p>
 <p>
@@ -13233,6 +15398,7 @@ TiKVCfConfig
 <h3 id="tikvraftstoreconfig">TiKVRaftstoreConfig</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#proxyconfig">ProxyConfig</a>, 
 <a href="#tikvconfig">TiKVConfig</a>)
 </p>
 <p>
@@ -13909,6 +16075,7 @@ bool
 <h3 id="tikvreadpoolconfig">TiKVReadPoolConfig</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#proxyconfig">ProxyConfig</a>, 
 <a href="#tikvconfig">TiKVConfig</a>)
 </p>
 <p>
@@ -13965,6 +16132,7 @@ TiKVStorageReadPoolConfig
 <h3 id="tikvsecurityconfig">TiKVSecurityConfig</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#proxyconfig">ProxyConfig</a>, 
 <a href="#tikvconfig">TiKVConfig</a>)
 </p>
 <p>
@@ -14288,6 +16456,7 @@ If the type set to kms, this config should be filled</p>
 <h3 id="tikvserverconfig">TiKVServerConfig</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#flashserverconfig">FlashServerConfig</a>, 
 <a href="#tikvconfig">TiKVConfig</a>)
 </p>
 <p>
@@ -14311,6 +16480,18 @@ string
 <td>
 <em>(Optional)</em>
 <p>Optional: Defaults to 1</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>max-grpc-send-msg-len</code></br>
+<em>
+uint
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Optional: Defaults to 10485760</p>
 </td>
 </tr>
 <tr>
@@ -14606,7 +16787,6 @@ string
 <h3 id="tikvspec">TiKVSpec</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#tikvgroupspec">TiKVGroupSpec</a>, 
 <a href="#tidbclusterspec">TidbClusterSpec</a>)
 </p>
 <p>
@@ -14748,8 +16928,8 @@ Defaults to &ldquo;&rdquo; (volume&rsquo;s root).</p>
 <td>
 <code>config</code></br>
 <em>
-<a href="#tikvconfig">
-TiKVConfig
+<a href="#tikvconfigwraper">
+TiKVConfigWraper
 </a>
 </em>
 </td>
@@ -14758,12 +16938,63 @@ TiKVConfig
 <p>Config is the Configuration of tikv-servers</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>recoverFailover</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RecoverFailover indicates that Operator can recover the failover Pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mountClusterClientSecret</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MountClusterClientSecret indicates whether to mount <code>cluster-client-secret</code> to the Pod</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>evictLeaderTimeout</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>EvictLeaderTimeout indicates the timeout to evict tikv leader, in the format of Go Duration.
+Defaults to 3m</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageVolumes</code></br>
+<em>
+<a href="#storagevolume">
+[]StorageVolume
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StorageVolumes is additional storage apply for TiKV node.
+Default to storageClassName storage class</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tikvstatus">TiKVStatus</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#tikvgroupstatus">TiKVGroupStatus</a>, 
 <a href="#tidbclusterstatus">TidbClusterStatus</a>)
 </p>
 <p>
@@ -14825,6 +17056,18 @@ map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.TiKVStore
 </tr>
 <tr>
 <td>
+<code>peerStores</code></br>
+<em>
+<a href="#tikvstore">
+map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.TiKVStore
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
 <code>tombstoneStores</code></br>
 <em>
 <a href="#tikvstore">
@@ -14862,6 +17105,7 @@ string
 <h3 id="tikvstorageconfig">TiKVStorageConfig</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#proxyconfig">ProxyConfig</a>, 
 <a href="#tikvconfig">TiKVConfig</a>)
 </p>
 <p>
@@ -14895,6 +17139,7 @@ int64
 </td>
 <td>
 <em>(Optional)</em>
+<p>Deprecated in v4.0.0</p>
 </td>
 </tr>
 <tr>
@@ -15430,6 +17675,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
+<p>Deprecated in v4.0.0</p>
 </td>
 </tr>
 <tr>
@@ -15481,7 +17727,7 @@ BasicAutoScalerSpec
 <h3 id="tidbautoscalerstatus">TidbAutoScalerStatus</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#tidbclusterautosclaerstatus">TidbClusterAutoSclaerStatus</a>)
+<a href="#tidbclusterautoscalerstatus">TidbClusterAutoScalerStatus</a>)
 </p>
 <p>
 <p>TidbAutoScalerStatus describe the auto-scaling status of tidb</p>
@@ -15580,34 +17826,6 @@ TidbClusterRef
 </tr>
 <tr>
 <td>
-<code>metricsUrl</code></br>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>We used prometheus to fetch the metrics resources until the pd could provide it.
-MetricsUrl represents the url to fetch the metrics info</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>monitor</code></br>
-<em>
-<a href="#tidbmonitorref">
-TidbMonitorRef
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>TidbMonitorRef describe the target TidbMonitor, when MetricsUrl and Monitor are both set,
-Operator will use MetricsUrl</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>tikv</code></br>
 <em>
 <a href="#tikvautoscalerspec">
@@ -15636,13 +17854,13 @@ TidbAutoScalerSpec
 </tr>
 </tbody>
 </table>
-<h3 id="tidbclusterautosclaerstatus">TidbClusterAutoSclaerStatus</h3>
+<h3 id="tidbclusterautoscalerstatus">TidbClusterAutoScalerStatus</h3>
 <p>
 (<em>Appears on:</em>
 <a href="#tidbclusterautoscaler">TidbClusterAutoScaler</a>)
 </p>
 <p>
-<p>TidbClusterAutoSclaerStatus describe the whole status</p>
+<p>TidbClusterAutoScalerStatus describe the whole status</p>
 </p>
 <table>
 <thead>
@@ -15657,13 +17875,13 @@ TidbAutoScalerSpec
 <code>tikv</code></br>
 <em>
 <a href="#tikvautoscalerstatus">
-TikvAutoScalerStatus
+map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.TikvAutoScalerStatus
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Tikv describes the status for the tikv in the last auto-scaling reconciliation</p>
+<p>Tikv describes the status of each group for the tikv in the last auto-scaling reconciliation</p>
 </td>
 </tr>
 <tr>
@@ -15671,13 +17889,13 @@ TikvAutoScalerStatus
 <code>tidb</code></br>
 <em>
 <a href="#tidbautoscalerstatus">
-TidbAutoScalerStatus
+map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.TidbAutoScalerStatus
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Tidb describes the status for the tidb in the last auto-scaling reconciliation</p>
+<p>Tidb describes the status of each group for the tidb in the last auto-scaling reconciliation</p>
 </td>
 </tr>
 </tbody>
@@ -15789,6 +18007,7 @@ string
 <p>
 (<em>Appears on:</em>
 <a href="#tidbclusterautoscalerspec">TidbClusterAutoScalerSpec</a>, 
+<a href="#tidbclusterspec">TidbClusterSpec</a>, 
 <a href="#tidbinitializerspec">TidbInitializerSpec</a>, 
 <a href="#tidbmonitorspec">TidbMonitorSpec</a>)
 </p>
@@ -15827,6 +18046,18 @@ string
 <p>Name is the name of TidbCluster object</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>clusterDomain</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ClusterDomain is the domain of TidbCluster object</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tidbclusterspec">TidbClusterSpec</h3>
@@ -15856,6 +18087,17 @@ DiscoverySpec
 </td>
 <td>
 <p>Discovery spec</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceAccount</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Specify a Service Account</p>
 </td>
 </tr>
 <tr>
@@ -16195,6 +18437,59 @@ bool
 <p>EnableDynamicConfiguration indicates whether DynamicConfiguration is enabled for the tidbcluster</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>clusterDomain</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ClusterDomain is the Kubernetes Cluster Domain of TiDB cluster
+Optional: Defaults to &ldquo;&rdquo;</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cluster</code></br>
+<em>
+<a href="#tidbclusterref">
+TidbClusterRef
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Cluster is the external cluster, if configured, the components in this TidbCluster will join to this configured cluster.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>pdAddresses</code></br>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PDAddresses are the external PD addresses, if configured, the PDs in this TidbCluster will join to the configured PD cluster.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>statefulSetUpdateStrategy</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#statefulsetupdatestrategytype-v1-apps">
+Kubernetes apps/v1.StatefulSetUpdateStrategyType
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StatefulSetUpdateStrategy of TiDB cluster StatefulSets</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tidbclusterstatus">TidbClusterStatus</h3>
@@ -16261,7 +18556,7 @@ TiDBStatus
 </tr>
 <tr>
 <td>
-<code>Pump</code></br>
+<code>pump</code></br>
 <em>
 <a href="#pumpstatus">
 PumpStatus
@@ -16309,7 +18604,7 @@ TidbMonitorRef
 </tr>
 <tr>
 <td>
-<code>auto-scaler,omitempyt</code></br>
+<code>auto-scaler</code></br>
 <em>
 <a href="#tidbclusterautoscalerref">
 TidbClusterAutoScalerRef
@@ -16331,32 +18626,6 @@ TidbClusterAutoScalerRef
 <td>
 <em>(Optional)</em>
 <p>Represents the latest available observations of a tidb cluster&rsquo;s state.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>tikv-groups</code></br>
-<em>
-<a href="#groupref">
-[]GroupRef
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-</td>
-</tr>
-<tr>
-<td>
-<code>tidb-groups</code></br>
-<em>
-<a href="#groupref">
-[]GroupRef
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
@@ -16561,7 +18830,6 @@ InitializePhase
 <h3 id="tidbmonitorref">TidbMonitorRef</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#tidbclusterautoscalerspec">TidbClusterAutoScalerSpec</a>, 
 <a href="#tidbclusterstatus">TidbClusterStatus</a>)
 </p>
 <p>
@@ -16849,6 +19117,17 @@ default to current tidb cluster version, for example: v3.0.15</p>
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>clusterScoped</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>ClusterScoped indicates whether this monitor should manage Kubernetes cluster-wide TiDB clusters</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="tidbmonitorstatus">TidbMonitorStatus</h3>
@@ -16895,7 +19174,7 @@ BasicAutoScalerSpec
 <h3 id="tikvautoscalerstatus">TikvAutoScalerStatus</h3>
 <p>
 (<em>Appears on:</em>
-<a href="#tidbclusterautosclaerstatus">TidbClusterAutoSclaerStatus</a>)
+<a href="#tidbclusterautoscalerstatus">TidbClusterAutoScalerStatus</a>)
 </p>
 <p>
 <p>TikvAutoScalerStatus describe the auto-scaling status of tikv</p>
@@ -16968,6 +19247,7 @@ uint
 <h3 id="unjoinedmember">UnjoinedMember</h3>
 <p>
 (<em>Appears on:</em>
+<a href="#masterstatus">MasterStatus</a>, 
 <a href="#pdstatus">PDStatus</a>)
 </p>
 <p>
@@ -17071,6 +19351,433 @@ Networks
 </td>
 <td>
 <em>(Optional)</em>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="workerconfig">WorkerConfig</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#workerspec">WorkerSpec</a>)
+</p>
+<p>
+<p>WorkerConfig is the configuration of dm-worker-server</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>log-level</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Log level.
+Optional: Defaults to info</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>log-file</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>File log config.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>log-format</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Log format. one of json or text.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>keepalive-ttl</code></br>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KeepAliveTTL is the keepalive TTL when dm-worker writes to the embedded etcd of dm-master
+Optional: Defaults to 10</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>DMSecurityConfig</code></br>
+<em>
+<a href="#dmsecurityconfig">
+DMSecurityConfig
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>DMSecurityConfig</code> are embedded into this type.)
+</p>
+<em>(Optional)</em>
+<p>dm-worker&rsquo;s security config</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="workerfailuremember">WorkerFailureMember</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#workerstatus">WorkerStatus</a>)
+</p>
+<p>
+<p>WorkerFailureMember is the dm-worker failure member information</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>podName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>createdAt</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="workermember">WorkerMember</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#workerstatus">WorkerStatus</a>)
+</p>
+<p>
+<p>WorkerMember is dm-worker member status</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>addr</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>stage</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>lastTransitionTime</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#time-v1-meta">
+Kubernetes meta/v1.Time
+</a>
+</em>
+</td>
+<td>
+<p>Last time the health transitioned from one to another.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="workerspec">WorkerSpec</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#dmclusterspec">DMClusterSpec</a>)
+</p>
+<p>
+<p>WorkerSpec contains details of dm-worker members</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>ComponentSpec</code></br>
+<em>
+<a href="#componentspec">
+ComponentSpec
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>ComponentSpec</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ResourceRequirements</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+<p>
+(Members of <code>ResourceRequirements</code> are embedded into this type.)
+</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>replicas</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>The desired ready replicas</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>baseImage</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Base image of the component, image tag is now allowed during validation</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>maxFailoverCount</code></br>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxFailoverCount limit the max replicas could be added in failover, 0 means no failover.
+Optional: Defaults to 3</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageClassName</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The storageClassName of the persistent volume for dm-worker data storage.
+Defaults to Kubernetes default storage class.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageSize</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StorageSize is the request storage size for dm-worker.
+Defaults to &ldquo;10Gi&rdquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataSubDir</code></br>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Subdirectory within the volume to store dm-worker Data. By default, the data
+is stored in the root directory of volume which is mounted at
+/var/lib/dm-worker.
+Specifying this will change the data directory to a subdirectory, e.g.
+/var/lib/dm-worker/data if you set the value to &ldquo;data&rdquo;.
+It&rsquo;s dangerous to change this value for a running cluster as it will
+upgrade your cluster to use a new storage directory.
+Defaults to &ldquo;&rdquo; (volume&rsquo;s root).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>config</code></br>
+<em>
+<a href="#workerconfig">
+WorkerConfig
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Config is the Configuration of dm-worker-servers</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>recoverFailover</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RecoverFailover indicates that Operator can recover the failover Pods</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="workerstatus">WorkerStatus</h3>
+<p>
+(<em>Appears on:</em>
+<a href="#dmclusterstatus">DMClusterStatus</a>)
+</p>
+<p>
+<p>WorkerStatus is dm-worker status</p>
+</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>synced</code></br>
+<em>
+bool
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>phase</code></br>
+<em>
+<a href="#memberphase">
+MemberPhase
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>statefulSet</code></br>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#statefulsetstatus-v1-apps">
+Kubernetes apps/v1.StatefulSetStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>members</code></br>
+<em>
+<a href="#workermember">
+map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.WorkerMember
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>failureMembers</code></br>
+<em>
+<a href="#workerfailuremember">
+map[string]github.com/pingcap/tidb-operator/pkg/apis/pingcap/v1alpha1.WorkerFailureMember
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>image</code></br>
+<em>
+string
+</em>
+</td>
+<td>
 </td>
 </tr>
 </tbody>

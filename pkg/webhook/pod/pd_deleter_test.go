@@ -19,6 +19,7 @@ import (
 
 	. "github.com/onsi/gomega"
 	"github.com/pingcap/kvproto/pkg/pdpb"
+	"github.com/pingcap/tidb-operator/pkg/client/clientset/versioned/fake"
 	"github.com/pingcap/tidb-operator/pkg/controller"
 	"github.com/pingcap/tidb-operator/pkg/label"
 	pdUtils "github.com/pingcap/tidb-operator/pkg/manager/member"
@@ -56,7 +57,6 @@ func TestPDDeleterDelete(t *testing.T) {
 
 	testFn := func(test *testcase) {
 		t.Log(test.name)
-
 		/**
 		init statefulset with 3 replicas
 		deletePod := tc-pd-2
@@ -80,7 +80,8 @@ func TestPDDeleterDelete(t *testing.T) {
 			}
 		}
 
-		podAdmissionControl := newPodAdmissionControl(kubeCli)
+		cli := fake.NewSimpleClientset()
+		podAdmissionControl := newPodAdmissionControl(nil, kubeCli, cli)
 		pdControl := pdapi.NewFakePDControl(kubeCli)
 		fakePDClient := controller.NewFakePDClient(pdControl, tc)
 
@@ -137,7 +138,7 @@ func TestPDDeleterDelete(t *testing.T) {
 		if test.isLeader {
 			fakePDClient.AddReaction(pdapi.GetPDLeaderActionType, func(action *pdapi.Action) (interface{}, error) {
 				leader := pdpb.Member{
-					Name: pdUtils.PdPodName(tcName, 3),
+					Name: deletePod.Name,
 				}
 				return &leader, nil
 			})

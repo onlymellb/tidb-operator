@@ -14,6 +14,7 @@
 package v1alpha1
 
 import (
+	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -41,14 +42,38 @@ type ComponentAccessor interface {
 	AdditionalContainers() []corev1.Container
 	AdditionalVolumes() []corev1.Volume
 	TerminationGracePeriodSeconds() *int64
+	StatefulSetUpdateStrategy() apps.StatefulSetUpdateStrategyType
 }
 
 type componentAccessorImpl struct {
-	// ClusterSpec is the TidbCluster Spec
-	ClusterSpec *TidbClusterSpec
+	imagePullPolicy           corev1.PullPolicy
+	imagePullSecrets          []corev1.LocalObjectReference
+	hostNetwork               *bool
+	affinity                  *corev1.Affinity
+	priorityClassName         *string
+	schedulerName             string
+	clusterNodeSelector       map[string]string
+	clusterAnnotations        map[string]string
+	tolerations               []corev1.Toleration
+	configUpdateStrategy      ConfigUpdateStrategy
+	statefulSetUpdateStrategy apps.StatefulSetUpdateStrategyType
 
 	// ComponentSpec is the Component Spec
 	ComponentSpec *ComponentSpec
+}
+
+func (a *componentAccessorImpl) StatefulSetUpdateStrategy() apps.StatefulSetUpdateStrategyType {
+	strategy := a.ComponentSpec.StatefulSetUpdateStrategy
+	if len(strategy) != 0 {
+		return strategy
+	}
+
+	strategy = a.statefulSetUpdateStrategy
+	if len(strategy) != 0 {
+		return strategy
+	}
+
+	return apps.RollingUpdateStatefulSetStrategyType
 }
 
 func (a *componentAccessorImpl) PodSecurityContext() *corev1.PodSecurityContext {
@@ -58,7 +83,7 @@ func (a *componentAccessorImpl) PodSecurityContext() *corev1.PodSecurityContext 
 func (a *componentAccessorImpl) ImagePullPolicy() corev1.PullPolicy {
 	pp := a.ComponentSpec.ImagePullPolicy
 	if pp == nil {
-		return a.ClusterSpec.ImagePullPolicy
+		return a.imagePullPolicy
 	}
 	return *pp
 }
@@ -66,7 +91,7 @@ func (a *componentAccessorImpl) ImagePullPolicy() corev1.PullPolicy {
 func (a *componentAccessorImpl) ImagePullSecrets() []corev1.LocalObjectReference {
 	ips := a.ComponentSpec.ImagePullSecrets
 	if ips == nil {
-		return a.ClusterSpec.ImagePullSecrets
+		return a.imagePullSecrets
 	}
 	return ips
 }
@@ -74,7 +99,7 @@ func (a *componentAccessorImpl) ImagePullSecrets() []corev1.LocalObjectReference
 func (a *componentAccessorImpl) HostNetwork() bool {
 	hostNetwork := a.ComponentSpec.HostNetwork
 	if hostNetwork == nil {
-		hostNetwork = a.ClusterSpec.HostNetwork
+		hostNetwork = a.hostNetwork
 	}
 	if hostNetwork == nil {
 		return defaultHostNetwork
@@ -85,7 +110,7 @@ func (a *componentAccessorImpl) HostNetwork() bool {
 func (a *componentAccessorImpl) Affinity() *corev1.Affinity {
 	affi := a.ComponentSpec.Affinity
 	if affi == nil {
-		affi = a.ClusterSpec.Affinity
+		affi = a.affinity
 	}
 	return affi
 }
@@ -93,7 +118,7 @@ func (a *componentAccessorImpl) Affinity() *corev1.Affinity {
 func (a *componentAccessorImpl) PriorityClassName() *string {
 	pcn := a.ComponentSpec.PriorityClassName
 	if pcn == nil {
-		pcn = a.ClusterSpec.PriorityClassName
+		pcn = a.priorityClassName
 	}
 	return pcn
 }
@@ -101,14 +126,14 @@ func (a *componentAccessorImpl) PriorityClassName() *string {
 func (a *componentAccessorImpl) SchedulerName() string {
 	pcn := a.ComponentSpec.SchedulerName
 	if pcn == nil {
-		pcn = &a.ClusterSpec.SchedulerName
+		pcn = &a.schedulerName
 	}
 	return *pcn
 }
 
 func (a *componentAccessorImpl) NodeSelector() map[string]string {
 	sel := map[string]string{}
-	for k, v := range a.ClusterSpec.NodeSelector {
+	for k, v := range a.clusterNodeSelector {
 		sel[k] = v
 	}
 	for k, v := range a.ComponentSpec.NodeSelector {
@@ -119,7 +144,7 @@ func (a *componentAccessorImpl) NodeSelector() map[string]string {
 
 func (a *componentAccessorImpl) Annotations() map[string]string {
 	anno := map[string]string{}
-	for k, v := range a.ClusterSpec.Annotations {
+	for k, v := range a.clusterAnnotations {
 		anno[k] = v
 	}
 	for k, v := range a.ComponentSpec.Annotations {
@@ -131,7 +156,7 @@ func (a *componentAccessorImpl) Annotations() map[string]string {
 func (a *componentAccessorImpl) Tolerations() []corev1.Toleration {
 	tols := a.ComponentSpec.Tolerations
 	if len(tols) == 0 {
-		tols = a.ClusterSpec.Tolerations
+		tols = a.tolerations
 	}
 	return tols
 }
@@ -147,7 +172,7 @@ func (a *componentAccessorImpl) DnsPolicy() corev1.DNSPolicy {
 func (a *componentAccessorImpl) ConfigUpdateStrategy() ConfigUpdateStrategy {
 	strategy := a.ComponentSpec.ConfigUpdateStrategy
 	if strategy == nil {
-		strategy = &a.ClusterSpec.ConfigUpdateStrategy
+		strategy = &a.configUpdateStrategy
 	}
 	// defaulting logic will set a default value for configUpdateStrategy field, but if the
 	// object is created in early version without this field being set, we should set a safe default
@@ -195,29 +220,64 @@ func (a *componentAccessorImpl) TerminationGracePeriodSeconds() *int64 {
 	return a.ComponentSpec.TerminationGracePeriodSeconds
 }
 
+func buildTidbClusterComponentAccessor(spec *TidbClusterSpec, componentSpec *ComponentSpec) ComponentAccessor {
+	return &componentAccessorImpl{
+		imagePullPolicy:           spec.ImagePullPolicy,
+		imagePullSecrets:          spec.ImagePullSecrets,
+		hostNetwork:               spec.HostNetwork,
+		affinity:                  spec.Affinity,
+		priorityClassName:         spec.PriorityClassName,
+		schedulerName:             spec.SchedulerName,
+		clusterNodeSelector:       spec.NodeSelector,
+		clusterAnnotations:        spec.Annotations,
+		tolerations:               spec.Tolerations,
+		configUpdateStrategy:      spec.ConfigUpdateStrategy,
+		statefulSetUpdateStrategy: spec.StatefulSetUpdateStrategy,
+
+		ComponentSpec: componentSpec,
+	}
+}
+
+func buildDMClusterComponentAccessor(spec *DMClusterSpec, componentSpec *ComponentSpec) ComponentAccessor {
+	return &componentAccessorImpl{
+		imagePullPolicy:      spec.ImagePullPolicy,
+		imagePullSecrets:     spec.ImagePullSecrets,
+		hostNetwork:          spec.HostNetwork,
+		affinity:             spec.Affinity,
+		priorityClassName:    spec.PriorityClassName,
+		schedulerName:        spec.SchedulerName,
+		clusterNodeSelector:  spec.NodeSelector,
+		clusterAnnotations:   spec.Annotations,
+		tolerations:          spec.Tolerations,
+		configUpdateStrategy: ConfigUpdateStrategyRollingUpdate,
+
+		ComponentSpec: componentSpec,
+	}
+}
+
 // BaseTiDBSpec returns the base spec of TiDB servers
 func (tc *TidbCluster) BaseTiDBSpec() ComponentAccessor {
-	return &componentAccessorImpl{&tc.Spec, &tc.Spec.TiDB.ComponentSpec}
+	return buildTidbClusterComponentAccessor(&tc.Spec, &tc.Spec.TiDB.ComponentSpec)
 }
 
 // BaseTiKVSpec returns the base spec of TiKV servers
 func (tc *TidbCluster) BaseTiKVSpec() ComponentAccessor {
-	return &componentAccessorImpl{&tc.Spec, &tc.Spec.TiKV.ComponentSpec}
+	return buildTidbClusterComponentAccessor(&tc.Spec, &tc.Spec.TiKV.ComponentSpec)
 }
 
 // BaseTiFlashSpec returns the base spec of TiFlash servers
 func (tc *TidbCluster) BaseTiFlashSpec() ComponentAccessor {
-	return &componentAccessorImpl{&tc.Spec, &tc.Spec.TiFlash.ComponentSpec}
+	return buildTidbClusterComponentAccessor(&tc.Spec, &tc.Spec.TiFlash.ComponentSpec)
 }
 
 // BaseTiCDCSpec returns the base spec of TiCDC servers
 func (tc *TidbCluster) BaseTiCDCSpec() ComponentAccessor {
-	return &componentAccessorImpl{&tc.Spec, &tc.Spec.TiCDC.ComponentSpec}
+	return buildTidbClusterComponentAccessor(&tc.Spec, &tc.Spec.TiCDC.ComponentSpec)
 }
 
 // BasePDSpec returns the base spec of PD servers
 func (tc *TidbCluster) BasePDSpec() ComponentAccessor {
-	return &componentAccessorImpl{&tc.Spec, &tc.Spec.PD.ComponentSpec}
+	return buildTidbClusterComponentAccessor(&tc.Spec, &tc.Spec.PD.ComponentSpec)
 }
 
 // BasePumpSpec returns two results:
@@ -227,5 +287,13 @@ func (tc *TidbCluster) BasePumpSpec() (ComponentAccessor, bool) {
 	if tc.Spec.Pump == nil {
 		return nil, false
 	}
-	return &componentAccessorImpl{&tc.Spec, &tc.Spec.Pump.ComponentSpec}, true
+	return buildTidbClusterComponentAccessor(&tc.Spec, &tc.Spec.Pump.ComponentSpec), true
+}
+
+func (dc *DMCluster) BaseMasterSpec() ComponentAccessor {
+	return buildDMClusterComponentAccessor(&dc.Spec, &dc.Spec.Master.ComponentSpec)
+}
+
+func (dc *DMCluster) BaseWorkerSpec() ComponentAccessor {
+	return buildDMClusterComponentAccessor(&dc.Spec, &dc.Spec.Worker.ComponentSpec)
 }

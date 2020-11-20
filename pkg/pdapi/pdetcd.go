@@ -27,6 +27,8 @@ type PDEtcdClient interface {
 	PutKey(key, value string) error
 	// DeleteKey will delete key from the target pd etcd cluster
 	DeleteKey(key string) error
+	// Close will close the etcd connection
+	Close() error
 }
 
 type pdEtcdClient struct {
@@ -49,17 +51,21 @@ func NewPdEtcdClient(url string, timeout time.Duration, tlsConfig *tls.Config) (
 	}, nil
 }
 
-func (pec *pdEtcdClient) PutKey(key, value string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), pec.timeout)
+func (c *pdEtcdClient) Close() error {
+	return c.etcdClient.Close()
+}
+
+func (c *pdEtcdClient) PutKey(key, value string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
-	_, err := pec.etcdClient.Put(ctx, key, value)
+	_, err := c.etcdClient.Put(ctx, key, value)
 	return err
 }
 
-func (pec *pdEtcdClient) DeleteKey(key string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), pec.timeout)
+func (c *pdEtcdClient) DeleteKey(key string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
-	kvc := etcdclientv3.NewKV(pec.etcdClient)
+	kvc := etcdclientv3.NewKV(c.etcdClient)
 
 	// perform a delete only if key already exists
 	_, err := kvc.Txn(ctx).

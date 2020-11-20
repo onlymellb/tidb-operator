@@ -33,20 +33,16 @@ func (c *FakePingcapV1alpha1) BackupSchedules(namespace string) v1alpha1.BackupS
 	return &FakeBackupSchedules{c, namespace}
 }
 
+func (c *FakePingcapV1alpha1) DMClusters(namespace string) v1alpha1.DMClusterInterface {
+	return &FakeDMClusters{c, namespace}
+}
+
 func (c *FakePingcapV1alpha1) DataResources(namespace string) v1alpha1.DataResourceInterface {
 	return &FakeDataResources{c, namespace}
 }
 
 func (c *FakePingcapV1alpha1) Restores(namespace string) v1alpha1.RestoreInterface {
 	return &FakeRestores{c, namespace}
-}
-
-func (c *FakePingcapV1alpha1) TiDBGroups(namespace string) v1alpha1.TiDBGroupInterface {
-	return &FakeTiDBGroups{c, namespace}
-}
-
-func (c *FakePingcapV1alpha1) TiKVGroups(namespace string) v1alpha1.TiKVGroupInterface {
-	return &FakeTiKVGroups{c, namespace}
 }
 
 func (c *FakePingcapV1alpha1) TidbClusters(namespace string) v1alpha1.TidbClusterInterface {

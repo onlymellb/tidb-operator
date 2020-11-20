@@ -29,6 +29,7 @@ properties([
     parameters([
         string(name: 'GIT_URL', defaultValue: 'https://github.com/pingcap/tidb-operator', description: 'git repo url'),
         string(name: 'GIT_REF', defaultValue: env.DEFAULT_GIT_REF, description: 'git ref spec to checkout, e.g. master, release-1.1'),
+        string(name: 'RELEASE_VER', defaultValue: '', description: "the version string in released tarball"),
         string(name: 'PR_ID', defaultValue: '', description: 'pull request ID, this will override GIT_REF if set, e.g. 1889'),
         string(name: 'GINKGO_NODES', defaultValue: env.DEFAULT_GINKGO_NODES, description: 'the number of ginkgo nodes'),
         string(name: 'E2E_ARGS', defaultValue: env.DEFAULT_E2E_ARGS, description: "e2e args, e.g. --ginkgo.focus='\\[Stability\\]'"),
@@ -325,8 +326,8 @@ try {
         def GLOBALS = "KIND_ETCD_DATADIR=/mnt/tmpfs/etcd SKIP_BUILD=y SKIP_IMAGE_BUILD=y DOCKER_REPO=hub.pingcap.net/tidb-operator-e2e IMAGE_TAG=${IMAGE_TAG} DELETE_NAMESPACE_ON_FAILURE=true GINKGO_NO_COLOR=y"
         build("tidb-operator", "${GLOBALS} GINKGO_NODES=${params.GINKGO_NODES} ./hack/e2e.sh -- ${params.E2E_ARGS}")
 
-        if (GIT_REF ==~ /^(master|)$/
-            || GIT_REF ==~ /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/) {
+        if (GIT_REF ==~ /^(master|)$/ || GIT_REF ==~ /^(release-.*)$/
+            || GIT_REF ==~ /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/) {
             // Upload assets if the git ref is the master branch or version tag
             podTemplate(yaml: buildPodYAML(resources: [requests: [cpu: "1", memory: "1G"]])) {
                 node(POD_LABEL) {
@@ -339,7 +340,7 @@ try {
                                     string(credentialsId: 'UCLOUD_PRIVATE_KEY', variable: 'UCLOUD_PRIVATE_KEY'),
                                 ]) {
                                     sh """
-                                    export UCLOUD_UFILE_PROXY_HOST=mainland-hk.ufileos.com
+                                    export UCLOUD_UFILE_PROXY_HOST=pingcap-dev.hk.ufileos.com
                                     export UCLOUD_UFILE_BUCKET=pingcap-dev
                                     export BUILD_BRANCH=${GIT_REF}
                                     export GITHASH=${GITHASH}

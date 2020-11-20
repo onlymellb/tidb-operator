@@ -25,9 +25,9 @@ import (
 
 	"github.com/pingcap/kvproto/pkg/metapb"
 	"github.com/pingcap/kvproto/pkg/pdpb"
-	"github.com/pingcap/pd/pkg/typeutil"
 	"github.com/pingcap/tidb-operator/pkg/util/crypto"
 	httputil "github.com/pingcap/tidb-operator/pkg/util/http"
+	"github.com/tikv/pd/pkg/typeutil"
 	types "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/klog"
@@ -88,6 +88,8 @@ type PDClient interface {
 	GetPDLeader() (*pdpb.Member, error)
 	// TransferPDLeader transfers pd leader to specified member
 	TransferPDLeader(name string) error
+	// GetAutoscalingPlans returns the scaling plan for the cluster
+	GetAutoscalingPlans(strategy Strategy) ([]Plan, error)
 }
 
 var (
@@ -104,6 +106,7 @@ var (
 	// evictLeaderSchedulerConfigPrefix is the prefix of evict-leader-scheduler
 	// config API, available since PD v3.1.0.
 	evictLeaderSchedulerConfigPrefix = "pd/api/v1/scheduler-config/evict-leader-scheduler/list"
+	autoscalingPrefix                = "autoscaling"
 )
 
 // pdClient is default implementation of PDClient
@@ -114,11 +117,15 @@ type pdClient struct {
 
 // NewPDClient returns a new PDClient
 func NewPDClient(url string, timeout time.Duration, tlsConfig *tls.Config) PDClient {
+	var disableKeepalive bool
+	if tlsConfig != nil {
+		disableKeepalive = true
+	}
 	return &pdClient{
 		url: url,
 		httpClient: &http.Client{
 			Timeout:   timeout,
-			Transport: &http.Transport{TLSClientConfig: tlsConfig},
+			Transport: &http.Transport{TLSClientConfig: tlsConfig, DisableKeepAlives: disableKeepalive},
 		},
 	}
 }
@@ -182,14 +189,63 @@ type MembersInfo struct {
 	EtcdLeader *pdpb.Member         `json:"etcd_leader,omitempty"`
 }
 
+// below copied from github.com/tikv/pd/pkg/autoscaling
+
+// Strategy within a HTTP request provides rules and resources to help make decision for auto scaling.
+type Strategy struct {
+	Rules     []*Rule     `json:"rules"`
+	Resources []*Resource `json:"resources"`
+}
+
+// Rule is a set of constraints for a kind of component.
+type Rule struct {
+	Component   string       `json:"component"`
+	CPURule     *CPURule     `json:"cpu_rule,omitempty"`
+	StorageRule *StorageRule `json:"storage_rule,omitempty"`
+}
+
+// CPURule is the constraints about CPU.
+type CPURule struct {
+	MaxThreshold  float64  `json:"max_threshold"`
+	MinThreshold  float64  `json:"min_threshold"`
+	ResourceTypes []string `json:"resource_types"`
+}
+
+// StorageRule is the constraints about storage.
+type StorageRule struct {
+	MinThreshold  float64  `json:"min_threshold"`
+	ResourceTypes []string `json:"resource_types"`
+}
+
+// Resource represents a kind of resource set including CPU, memory, storage.
+type Resource struct {
+	ResourceType string `json:"resource_type"`
+	// The basic unit of CPU is milli-core.
+	CPU uint64 `json:"cpu"`
+	// The basic unit of memory is byte.
+	Memory uint64 `json:"memory"`
+	// The basic unit of storage is byte.
+	Storage uint64 `json:"storage"`
+	// If count is not set, it indicates no limit.
+	Count *uint64 `json:"count,omitempty"`
+}
+
+// Plan is the final result of auto scaling, which indicates how to scale in or scale out.
+type Plan struct {
+	Component    string            `json:"component"`
+	Count        uint64            `json:"count"`
+	ResourceType string            `json:"resource_type"`
+	Labels       map[string]string `json:"labels"`
+}
+
 type schedulerInfo struct {
 	Name    string `json:"name"`
 	StoreID uint64 `json:"store_id"`
 }
 
-func (pc *pdClient) GetHealth() (*HealthInfo, error) {
-	apiURL := fmt.Sprintf("%s/%s", pc.url, healthPrefix)
-	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
+func (c *pdClient) GetHealth() (*HealthInfo, error) {
+	apiURL := fmt.Sprintf("%s/%s", c.url, healthPrefix)
+	body, err := httputil.GetBodyOK(c.httpClient, apiURL)
 	if err != nil {
 		return nil, err
 	}
@@ -203,9 +259,9 @@ func (pc *pdClient) GetHealth() (*HealthInfo, error) {
 	}, nil
 }
 
-func (pc *pdClient) GetConfig() (*PDConfigFromAPI, error) {
-	apiURL := fmt.Sprintf("%s/%s", pc.url, configPrefix)
-	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
+func (c *pdClient) GetConfig() (*PDConfigFromAPI, error) {
+	apiURL := fmt.Sprintf("%s/%s", c.url, configPrefix)
+	body, err := httputil.GetBodyOK(c.httpClient, apiURL)
 	if err != nil {
 		return nil, err
 	}
@@ -217,9 +273,9 @@ func (pc *pdClient) GetConfig() (*PDConfigFromAPI, error) {
 	return config, nil
 }
 
-func (pc *pdClient) GetCluster() (*metapb.Cluster, error) {
-	apiURL := fmt.Sprintf("%s/%s", pc.url, clusterIDPrefix)
-	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
+func (c *pdClient) GetCluster() (*metapb.Cluster, error) {
+	apiURL := fmt.Sprintf("%s/%s", c.url, clusterIDPrefix)
+	body, err := httputil.GetBodyOK(c.httpClient, apiURL)
 	if err != nil {
 		return nil, err
 	}
@@ -231,9 +287,9 @@ func (pc *pdClient) GetCluster() (*metapb.Cluster, error) {
 	return cluster, nil
 }
 
-func (pc *pdClient) GetMembers() (*MembersInfo, error) {
-	apiURL := fmt.Sprintf("%s/%s", pc.url, membersPrefix)
-	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
+func (c *pdClient) GetMembers() (*MembersInfo, error) {
+	apiURL := fmt.Sprintf("%s/%s", c.url, membersPrefix)
+	body, err := httputil.GetBodyOK(c.httpClient, apiURL)
 	if err != nil {
 		return nil, err
 	}
@@ -245,8 +301,8 @@ func (pc *pdClient) GetMembers() (*MembersInfo, error) {
 	return members, nil
 }
 
-func (pc *pdClient) getStores(apiURL string) (*StoresInfo, error) {
-	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
+func (c *pdClient) getStores(apiURL string) (*StoresInfo, error) {
+	body, err := httputil.GetBodyOK(c.httpClient, apiURL)
 	if err != nil {
 		return nil, err
 	}
@@ -258,17 +314,17 @@ func (pc *pdClient) getStores(apiURL string) (*StoresInfo, error) {
 	return storesInfo, nil
 }
 
-func (pc *pdClient) GetStores() (*StoresInfo, error) {
-	return pc.getStores(fmt.Sprintf("%s/%s", pc.url, storesPrefix))
+func (c *pdClient) GetStores() (*StoresInfo, error) {
+	return c.getStores(fmt.Sprintf("%s/%s", c.url, storesPrefix))
 }
 
-func (pc *pdClient) GetTombStoneStores() (*StoresInfo, error) {
-	return pc.getStores(fmt.Sprintf("%s/%s?state=%d", pc.url, storesPrefix, metapb.StoreState_Tombstone))
+func (c *pdClient) GetTombStoneStores() (*StoresInfo, error) {
+	return c.getStores(fmt.Sprintf("%s/%s?state=%d", c.url, storesPrefix, metapb.StoreState_Tombstone))
 }
 
-func (pc *pdClient) GetStore(storeID uint64) (*StoreInfo, error) {
-	apiURL := fmt.Sprintf("%s/%s/%d", pc.url, storePrefix, storeID)
-	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
+func (c *pdClient) GetStore(storeID uint64) (*StoreInfo, error) {
+	apiURL := fmt.Sprintf("%s/%s/%d", c.url, storePrefix, storeID)
+	body, err := httputil.GetBodyOK(c.httpClient, apiURL)
 	if err != nil {
 		return nil, err
 	}
@@ -280,9 +336,9 @@ func (pc *pdClient) GetStore(storeID uint64) (*StoreInfo, error) {
 	return storeInfo, nil
 }
 
-func (pc *pdClient) DeleteStore(storeID uint64) error {
+func (c *pdClient) DeleteStore(storeID uint64) error {
 	var exist bool
-	stores, err := pc.GetStores()
+	stores, err := c.GetStores()
 	if err != nil {
 		return err
 	}
@@ -295,12 +351,12 @@ func (pc *pdClient) DeleteStore(storeID uint64) error {
 	if !exist {
 		return nil
 	}
-	apiURL := fmt.Sprintf("%s/%s/%d", pc.url, storePrefix, storeID)
+	apiURL := fmt.Sprintf("%s/%s/%d", c.url, storePrefix, storeID)
 	req, err := http.NewRequest("DELETE", apiURL, nil)
 	if err != nil {
 		return err
 	}
-	res, err := pc.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -319,13 +375,13 @@ func (pc *pdClient) DeleteStore(storeID uint64) error {
 }
 
 // SetStoreState sets store to specified state.
-func (pc *pdClient) SetStoreState(storeID uint64, state string) error {
-	apiURL := fmt.Sprintf("%s/%s/%d/state?state=%s", pc.url, storePrefix, storeID, state)
+func (c *pdClient) SetStoreState(storeID uint64, state string) error {
+	apiURL := fmt.Sprintf("%s/%s/%d/state?state=%s", c.url, storePrefix, storeID, state)
 	req, err := http.NewRequest("POST", apiURL, nil)
 	if err != nil {
 		return err
 	}
-	res, err := pc.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -342,9 +398,9 @@ func (pc *pdClient) SetStoreState(storeID uint64, state string) error {
 	return fmt.Errorf("failed to delete store %d: %v", storeID, string(body))
 }
 
-func (pc *pdClient) DeleteMemberByID(memberID uint64) error {
+func (c *pdClient) DeleteMemberByID(memberID uint64) error {
 	var exist bool
-	members, err := pc.GetMembers()
+	members, err := c.GetMembers()
 	if err != nil {
 		return err
 	}
@@ -357,12 +413,12 @@ func (pc *pdClient) DeleteMemberByID(memberID uint64) error {
 	if !exist {
 		return nil
 	}
-	apiURL := fmt.Sprintf("%s/%s/id/%d", pc.url, membersPrefix, memberID)
+	apiURL := fmt.Sprintf("%s/%s/id/%d", c.url, membersPrefix, memberID)
 	req, err := http.NewRequest("DELETE", apiURL, nil)
 	if err != nil {
 		return err
 	}
-	res, err := pc.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -374,9 +430,9 @@ func (pc *pdClient) DeleteMemberByID(memberID uint64) error {
 	return fmt.Errorf("failed %v to delete member %d: %v", res.StatusCode, memberID, err2)
 }
 
-func (pc *pdClient) DeleteMember(name string) error {
+func (c *pdClient) DeleteMember(name string) error {
 	var exist bool
-	members, err := pc.GetMembers()
+	members, err := c.GetMembers()
 	if err != nil {
 		return err
 	}
@@ -389,12 +445,12 @@ func (pc *pdClient) DeleteMember(name string) error {
 	if !exist {
 		return nil
 	}
-	apiURL := fmt.Sprintf("%s/%s/name/%s", pc.url, membersPrefix, name)
+	apiURL := fmt.Sprintf("%s/%s/name/%s", c.url, membersPrefix, name)
 	req, err := http.NewRequest("DELETE", apiURL, nil)
 	if err != nil {
 		return err
 	}
-	res, err := pc.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -406,13 +462,13 @@ func (pc *pdClient) DeleteMember(name string) error {
 	return fmt.Errorf("failed %v to delete member %s: %v", res.StatusCode, name, err2)
 }
 
-func (pc *pdClient) SetStoreLabels(storeID uint64, labels map[string]string) (bool, error) {
-	apiURL := fmt.Sprintf("%s/%s/%d/label", pc.url, storePrefix, storeID)
+func (c *pdClient) SetStoreLabels(storeID uint64, labels map[string]string) (bool, error) {
+	apiURL := fmt.Sprintf("%s/%s/%d/label", c.url, storePrefix, storeID)
 	data, err := json.Marshal(labels)
 	if err != nil {
 		return false, err
 	}
-	res, err := pc.httpClient.Post(apiURL, "application/json", bytes.NewBuffer(data))
+	res, err := c.httpClient.Post(apiURL, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		return false, err
 	}
@@ -424,13 +480,13 @@ func (pc *pdClient) SetStoreLabels(storeID uint64, labels map[string]string) (bo
 	return false, fmt.Errorf("failed %v to set store labels: %v", res.StatusCode, err2)
 }
 
-func (pc *pdClient) UpdateReplicationConfig(config PDReplicationConfig) error {
-	apiURL := fmt.Sprintf("%s/%s", pc.url, pdReplicationPrefix)
+func (c *pdClient) UpdateReplicationConfig(config PDReplicationConfig) error {
+	apiURL := fmt.Sprintf("%s/%s", c.url, pdReplicationPrefix)
 	data, err := json.Marshal(config)
 	if err != nil {
 		return err
 	}
-	res, err := pc.httpClient.Post(apiURL, "application/json", bytes.NewBuffer(data))
+	res, err := c.httpClient.Post(apiURL, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -442,14 +498,14 @@ func (pc *pdClient) UpdateReplicationConfig(config PDReplicationConfig) error {
 	return fmt.Errorf("failed %v to update replication: %v", res.StatusCode, err)
 }
 
-func (pc *pdClient) BeginEvictLeader(storeID uint64) error {
+func (c *pdClient) BeginEvictLeader(storeID uint64) error {
 	leaderEvictInfo := getLeaderEvictSchedulerInfo(storeID)
-	apiURL := fmt.Sprintf("%s/%s", pc.url, schedulersPrefix)
+	apiURL := fmt.Sprintf("%s/%s", c.url, schedulersPrefix)
 	data, err := json.Marshal(leaderEvictInfo)
 	if err != nil {
 		return err
 	}
-	res, err := pc.httpClient.Post(apiURL, "application/json", bytes.NewBuffer(data))
+	res, err := c.httpClient.Post(apiURL, "application/json", bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
@@ -465,7 +521,7 @@ func (pc *pdClient) BeginEvictLeader(storeID uint64) error {
 	//   - return nil if the scheduler already exists
 	//
 	// when PD returns standard json response, we should get rid of this verbose code.
-	evictLeaderSchedulers, err := pc.GetEvictLeaderSchedulers()
+	evictLeaderSchedulers, err := c.GetEvictLeaderSchedulers()
 	if err != nil {
 		return err
 	}
@@ -479,14 +535,14 @@ func (pc *pdClient) BeginEvictLeader(storeID uint64) error {
 	return fmt.Errorf("failed %v to begin evict leader of store:[%d],error: %v", res.StatusCode, storeID, err2)
 }
 
-func (pc *pdClient) EndEvictLeader(storeID uint64) error {
+func (c *pdClient) EndEvictLeader(storeID uint64) error {
 	sName := getLeaderEvictSchedulerStr(storeID)
-	apiURL := fmt.Sprintf("%s/%s/%s", pc.url, schedulersPrefix, sName)
+	apiURL := fmt.Sprintf("%s/%s/%s", c.url, schedulersPrefix, sName)
 	req, err := http.NewRequest("DELETE", apiURL, nil)
 	if err != nil {
 		return err
 	}
-	res, err := pc.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -508,7 +564,7 @@ func (pc *pdClient) EndEvictLeader(storeID uint64) error {
 	//   - return nil if the scheduler is not found
 	//
 	// when PD returns standard json response, we should get rid of this verbose code.
-	evictLeaderSchedulers, err := pc.GetEvictLeaderSchedulers()
+	evictLeaderSchedulers, err := c.GetEvictLeaderSchedulers()
 	if err != nil {
 		return err
 	}
@@ -521,9 +577,9 @@ func (pc *pdClient) EndEvictLeader(storeID uint64) error {
 	return nil
 }
 
-func (pc *pdClient) GetEvictLeaderSchedulers() ([]string, error) {
-	apiURL := fmt.Sprintf("%s/%s", pc.url, schedulersPrefix)
-	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
+func (c *pdClient) GetEvictLeaderSchedulers() ([]string, error) {
+	apiURL := fmt.Sprintf("%s/%s", c.url, schedulersPrefix)
+	body, err := httputil.GetBodyOK(c.httpClient, apiURL)
 	if err != nil {
 		return nil, err
 	}
@@ -538,7 +594,7 @@ func (pc *pdClient) GetEvictLeaderSchedulers() ([]string, error) {
 			evicts = append(evicts, scheduler)
 		}
 	}
-	evictSchedulers, err := pc.filterLeaderEvictScheduler(evicts)
+	evictSchedulers, err := c.filterLeaderEvictScheduler(evicts)
 	if err != nil {
 		return nil, err
 	}
@@ -548,9 +604,9 @@ func (pc *pdClient) GetEvictLeaderSchedulers() ([]string, error) {
 // getEvictLeaderSchedulerConfig gets the config of PD scheduler "evict-leader-scheduler"
 // It's available since PD 3.1.0.
 // In the previous versions, PD API returns 404 and this function will return an error.
-func (pc *pdClient) getEvictLeaderSchedulerConfig() (*evictLeaderSchedulerConfig, error) {
-	apiURL := fmt.Sprintf("%s/%s", pc.url, evictLeaderSchedulerConfigPrefix)
-	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
+func (c *pdClient) getEvictLeaderSchedulerConfig() (*evictLeaderSchedulerConfig, error) {
+	apiURL := fmt.Sprintf("%s/%s", c.url, evictLeaderSchedulerConfigPrefix)
+	body, err := httputil.GetBodyOK(c.httpClient, apiURL)
 	if err != nil {
 		return nil, err
 	}
@@ -566,13 +622,13 @@ func (pc *pdClient) getEvictLeaderSchedulerConfig() (*evictLeaderSchedulerConfig
 // To get more detail, see:
 // - https://github.com/pingcap/tidb-operator/pull/1831
 // - https://github.com/pingcap/pd/issues/2550
-func (pc *pdClient) filterLeaderEvictScheduler(evictLeaderSchedulers []string) ([]string, error) {
+func (c *pdClient) filterLeaderEvictScheduler(evictLeaderSchedulers []string) ([]string, error) {
 	var schedulerIds []string
 	if len(evictLeaderSchedulers) == 1 && evictLeaderSchedulers[0] == evictSchedulerLeader {
 		// If there is only one evcit scehduler entry without store ID postfix.
 		// We should get the store IDs via scheduler config API and append them
 		// to provide consistent results.
-		c, err := pc.getEvictLeaderSchedulerConfig()
+		c, err := c.getEvictLeaderSchedulerConfig()
 		if err != nil {
 			return nil, err
 		}
@@ -580,16 +636,14 @@ func (pc *pdClient) filterLeaderEvictScheduler(evictLeaderSchedulers []string) (
 			schedulerIds = append(schedulerIds, fmt.Sprintf("%s-%v", evictSchedulerLeader, k))
 		}
 	} else {
-		for _, s := range evictLeaderSchedulers {
-			schedulerIds = append(schedulerIds, s)
-		}
+		schedulerIds = append(schedulerIds, evictLeaderSchedulers...)
 	}
 	return schedulerIds, nil
 }
 
-func (pc *pdClient) GetPDLeader() (*pdpb.Member, error) {
-	apiURL := fmt.Sprintf("%s/%s", pc.url, pdLeaderPrefix)
-	body, err := httputil.GetBodyOK(pc.httpClient, apiURL)
+func (c *pdClient) GetPDLeader() (*pdpb.Member, error) {
+	apiURL := fmt.Sprintf("%s/%s", c.url, pdLeaderPrefix)
+	body, err := httputil.GetBodyOK(c.httpClient, apiURL)
 	if err != nil {
 		return nil, err
 	}
@@ -601,13 +655,13 @@ func (pc *pdClient) GetPDLeader() (*pdpb.Member, error) {
 	return leader, nil
 }
 
-func (pc *pdClient) TransferPDLeader(memberName string) error {
-	apiURL := fmt.Sprintf("%s/%s/%s", pc.url, pdLeaderTransferPrefix, memberName)
+func (c *pdClient) TransferPDLeader(memberName string) error {
+	apiURL := fmt.Sprintf("%s/%s/%s", c.url, pdLeaderTransferPrefix, memberName)
 	req, err := http.NewRequest("POST", apiURL, nil)
 	if err != nil {
 		return err
 	}
-	res, err := pc.httpClient.Do(req)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -617,6 +671,24 @@ func (pc *pdClient) TransferPDLeader(memberName string) error {
 	}
 	err2 := httputil.ReadErrorBody(res.Body)
 	return fmt.Errorf("failed %v to transfer pd leader to %s,error: %v", res.StatusCode, memberName, err2)
+}
+
+func (c *pdClient) GetAutoscalingPlans(strategy Strategy) ([]Plan, error) {
+	apiURL := fmt.Sprintf("%s/%s", c.url, autoscalingPrefix)
+	data, err := json.Marshal(strategy)
+	if err != nil {
+		return nil, err
+	}
+	body, err := httputil.PostBodyOK(c.httpClient, apiURL, bytes.NewBuffer(data))
+	if err != nil {
+		return nil, err
+	}
+	var plans []Plan
+	err = json.Unmarshal(body, &plans)
+	if err != nil {
+		return nil, err
+	}
+	return plans, nil
 }
 
 func getLeaderEvictSchedulerInfo(storeID uint64) *schedulerInfo {

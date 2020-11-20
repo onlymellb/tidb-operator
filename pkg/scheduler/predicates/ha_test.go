@@ -439,10 +439,10 @@ func TestHAFilter(t *testing.T) {
 	}
 
 	topologyKey := "zone"
+	instanceName := "demo"
+	clusterName := "cluster-1"
 	testFn := func(test *testcase, t *testing.T) {
 		t.Log(test.name)
-		instanceName := "demo"
-		clusterName := "cluster-1"
 
 		pod := test.podFn(instanceName, clusterName, 0)
 		nodes := test.nodesFn()
@@ -748,6 +748,19 @@ func TestHAFilter(t *testing.T) {
 			},
 		},
 		{
+			name:               "three topologies, three pods scheduled, desired replica is 4, return three topologies",
+			podFn:              newHATiKVPod,
+			nodesFn:            fakeThreeNodes,
+			podListFn:          podListFn(map[string][]int32{"kube-node-1": {0}, "kube-node-2": {1}, "kube-node-3": {2}}),
+			acquireLockFn:      acquireSuccess,
+			tcGetFn:            tcGetThreeAndOneFailoverReplicaFn,
+			scheduledNodeGetFn: fakeZeroScheduledNode,
+			expectFn: func(nodes []apiv1.Node, err error) {
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(len(nodes)).To(Equal(3))
+			},
+		},
+		{
 			name:               "three topologies, one pod not scheduled on these three topologies, return all the three nodes",
 			podFn:              newHAPDPod,
 			nodesFn:            fakeThreeNodes,
@@ -1036,6 +1049,48 @@ func TestHAFilter(t *testing.T) {
 				g.Expect(getSortedNodeNames(nodes)).To(Equal([]string{"kube-node-3"}))
 			},
 		},
+		{
+			name:          "[support-asts] set pd.tidb.pingcap.com/delete-slots: '[2]' ",
+			podFn:         newHAPDPod,
+			nodesFn:       fakeFourNodes,
+			podListFn:     podListFn(map[string][]int32{"kube-node-1": {1}, "kube-node-2": {2}, "kube-node-3": {3}, "kube-node-4": {4}}),
+			acquireLockFn: acquireSuccess,
+			tcGetFn: func(ns string, tcName string) (*v1alpha1.TidbCluster, error) {
+				tc, _ := tcGetFn(ns, tcName)
+				tc.Annotations["pd.tidb.pingcap.com/delete-slots"] = "[2]"
+				return tc, nil
+			},
+			scheduledNodeGetFn: fakeZeroScheduledNode,
+			expectFn: func(nodes []apiv1.Node, err error) {
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(len(nodes)).To(Equal(2))
+				g.Expect(getSortedNodeNames(nodes)).To(Equal([]string{"kube-node-2", "kube-node-4"}))
+			},
+		},
+		{
+			name:          "pd-1 is in failureMembers",
+			podFn:         newHAPDPod,
+			nodesFn:       fakeFourNodes,
+			podListFn:     podListFn(map[string][]int32{"kube-node-1": {1}, "kube-node-2": {2}, "kube-node-3": {3}, "kube-node-4": {}}),
+			acquireLockFn: acquireSuccess,
+			tcGetFn: func(ns string, tcName string) (*v1alpha1.TidbCluster, error) {
+				tc, _ := tcGetFn(ns, tcName)
+				pd1 := fmt.Sprintf("%s-%d", controller.PDMemberName(instanceName), 1)
+				tc.Status.PD.FailureMembers = map[string]v1alpha1.PDFailureMember{
+					pd1: {
+						PodName:       pd1,
+						MemberDeleted: true,
+					},
+				}
+				return tc, nil
+			},
+			scheduledNodeGetFn: fakeZeroScheduledNode,
+			expectFn: func(nodes []apiv1.Node, err error) {
+				g.Expect(err).NotTo(HaveOccurred())
+				g.Expect(len(nodes)).To(Equal(2))
+				g.Expect(getSortedNodeNames(nodes)).To(Equal([]string{"kube-node-1", "kube-node-4"}))
+			},
+		},
 	}
 
 	for i := range tests {
@@ -1162,6 +1217,26 @@ func tcGetTwoReplicasFn(ns string, tcName string) (*v1alpha1.TidbCluster, error)
 		},
 		Spec: v1alpha1.TidbClusterSpec{
 			PD: &v1alpha1.PDSpec{Replicas: 2},
+		},
+	}, nil
+}
+
+func tcGetThreeAndOneFailoverReplicaFn(ns string, tcName string) (*v1alpha1.TidbCluster, error) {
+	return &v1alpha1.TidbCluster{
+		TypeMeta: metav1.TypeMeta{Kind: "TidbCluster", APIVersion: "v1alpha1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      tcName,
+			Namespace: ns,
+		},
+		Spec: v1alpha1.TidbClusterSpec{
+			TiKV: &v1alpha1.TiKVSpec{Replicas: 3},
+		},
+		Status: v1alpha1.TidbClusterStatus{
+			TiKV: v1alpha1.TiKVStatus{
+				FailureStores: map[string]v1alpha1.TiKVFailureStore{
+					fmt.Sprintf("%s-tikv-1", tcName): {},
+				},
+			},
 		},
 	}, nil
 }
